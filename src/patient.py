@@ -9,7 +9,9 @@ from PIL import Image, ImageDraw
 
 
 def maybe_rotate(image):
-    return np.rot90(image) if image.shape == (216, 256) else image
+    # orient image in landscape
+    height, width = image.shape
+    return np.rot90(image) if width < height else image
 
 class PatientData(object):
     """Data directory structure (for patient 01):
@@ -58,9 +60,10 @@ class PatientData(object):
             plan = dicom.read_file(dicom_file)
             image = plan.pixel_array.astype(float)
             image *= 255/image.max()
-            self.all_images.append(np.asarray(image, dtype='uint8'))
+            image = maybe_rotate(np.asarray(image, dtype='uint8'))
+            self.all_images.append(image)
             self.all_dicoms.append(plan)
-        self.image_height, self.image_width = plan.pixel_array.shape
+        self.image_height, self.image_width = image.shape
 
     def load_masks(self):
         with open(self.contour_list_file, 'r') as f:
@@ -101,15 +104,10 @@ class PatientData(object):
             self.epicardium_masks.append(mask)
             
     def write_video(self, outfile, FPS = 24):
-        # Not converted to class interface yet -- NOT WORKING YET
         import cv2
         image_dims = (self.image_width, self.image_height)
         video = cv2.VideoWriter(outfile, -1, FPS, image_dims)
-        for dicom_file in dicom_files:
-            plan = dicom.read_file(dicom_file)
-            frame = plan.pixel_array.astype(float)
-            scale = max(frame.flat)
-            image = np.asarray(255*frame/scale, dtype='uint8')
+        for image in self.all_images:
             video.write(cv2.cvtColor(image, cv2.COLOR_GRAY2BGR))
         video.release()
 
