@@ -103,14 +103,14 @@ class PatientData(object):
             image_dims = (self.image_width, self.image_height)
             img = Image.new(BW_8BIT, image_dims, color=0)
             ImageDraw.Draw(img).polygon(polygon, outline=1, fill=1)
-            mask = np.array(img)
+            mask = 255*np.array(img, dtype='uint8')
             self.endocardium_masks.append(mask)
 
             polygon = list(zip(outer_x, outer_y))
             image_dims = (self.image_width, self.image_height)
             img = Image.new(BW_8BIT, image_dims, color=0)
             ImageDraw.Draw(img).polygon(polygon, outline=1, fill=1)
-            mask = np.array(img)
+            mask = 255*np.array(img, dtype='uint8')
             self.epicardium_masks.append(mask)
             
     def write_video(self, outfile, FPS = 24):
