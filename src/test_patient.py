@@ -25,13 +25,21 @@ class TestPatientData(unittest.TestCase):
         self.assertEqual(len(p.all_dicoms), 22)
         self.assertEqual(p.image_width, 256)
         self.assertEqual(p.image_height, 216)
+        self.assertEqual(p.rotated, True)
         self.assertEqual(p.labeled, [20])
         self.assertEqual(len(p.endocardium_masks), 1)
         self.assertEqual(len(p.epicardium_masks), 1)
 
+        # check dicom MRI image
         plan = dicom.read_file(self.directory + "P09dicom/P09-0000.dcm")
         np.testing.assert_array_equal(p.all_dicoms[0].pixel_array,
                                       plan.pixel_array)
+
+        # check endo- and epicardium masks
+        endo_mask = np.loadtxt(self.directory + "endocardium-p09-0020.mask")
+        np.testing.assert_array_equal(p.endocardium_masks[0], endo_mask)
+        epi_mask = np.loadtxt(self.directory + "epicardium-p09-0020.mask")
+        np.testing.assert_array_equal(p.epicardium_masks[0], epi_mask)
 
     def test_write_video(self):
         p = patient.PatientData(self.directory)

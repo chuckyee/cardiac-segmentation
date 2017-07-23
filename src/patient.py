@@ -64,6 +64,7 @@ class PatientData(object):
             self.all_images.append(image)
             self.all_dicoms.append(plan)
         self.image_height, self.image_width = image.shape
+        self.rotated = (plan.pixel_array.shape != image.shape)
 
     def load_masks(self):
         with open(self.contour_list_file, 'r') as f:
@@ -76,13 +77,22 @@ class PatientData(object):
         self.endocardium_masks = []
         self.epicardium_masks = []
         for inner_file, outer_file in zip(inner_files, outer_files):
+            # strip out path head "patientXX/"
             match = re.search("patient../(.*)", inner_file)
             inner_path = os.path.join(self.directory, match.group(1))
             inner_x, inner_y = np.loadtxt(inner_path).T
+            if self.rotated:
+                x = inner_y
+                y = self.image_height - inner_x
+                inner_x, inner_y = x, y
 
             match = re.search("patient../(.*)", outer_file)
             outer_path = os.path.join(self.directory, match.group(1))
             outer_x, outer_y = np.loadtxt(outer_path).T
+            if self.rotated:
+                x = outer_y
+                y = self.image_height - outer_x
+                outer_x, outer_y = x, y
 
             match = re.search("P..-(....)-.contour", inner_file)
             frame_number = int(match.group(1))
