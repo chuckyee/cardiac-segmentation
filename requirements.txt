@@ -12,6 +12,7 @@ matplotlib==2.0.2
 networkx==1.11
 numpy==1.13.1
 olefile==0.44
+opencv==1.0.1
 pexpect==4.2.1
 pickleshare==0.7.4
 Pillow==4.2.1
