@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 from __future__ import division, print_function
 
 import unittest
@@ -44,8 +42,8 @@ class TestPatientData(unittest.TestCase):
     def test_write_video(self):
         p = patient.PatientData(self.directory)
         outfile = "test_write_video.mp4"
-        p.write_video(outfile)
         path = os.path.join(os.getcwd(), outfile)
+        p.write_video(path)
         # simply check file exists and isn't empty
         self.assertTrue(os.path.isfile(path))
         self.assertGreater(os.path.getsize(path), 0)
