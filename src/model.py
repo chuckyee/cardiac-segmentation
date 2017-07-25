@@ -1,14 +1,9 @@
 from __future__ import division, print_function
 
-
 from keras.layers import Input, Conv2D, Conv2DTranspose
 from keras.layers import MaxPooling2D, Cropping2D, Concatenate
 from keras.models import Model
-from keras import optimizers, utils
 from keras import backend as K
-
-import glob
-import patient
 
 
 def downsampling_block(input_tensor, filters, padding='valid'):
@@ -76,44 +71,7 @@ def u_net(height, width, maps, features, depth, classes, padding='valid'):
         features //= 2
         x = upsampling_block(x, skips[i], features, padding)
 
-    logits = Conv2D(filters=classes, kernel_size=(1,1))(x)
+    # logits = Conv2D(filters=classes, kernel_size=(1,1))(x)
+    probabilities = Conv2D(filters=classes, kernel_size=(1,1), activation='softmax')(x)
 
-    return Model(inputs=inputs, outputs=logits)
-
-def main():
-    learning_rate = 0.01
-    momentum = 0.99
-    decay = 0.0
-    epochs = 100
-    validation_split = 0.2
-    padding = 'same'
-    features = 32
-    depth = 3
-    classes = 2
-
-    import numpy as np
-    patient_dirs = glob.glob("/home/paperspace/Developer/datasets/RVSC/TrainingSet/patient*")[:1]
-    images = []
-    masks = []
-    for patient_dir in patient_dirs:
-        p = patient.PatientData(patient_dir)
-        images += p.images
-        masks += p.endocardium_masks
-    images = np.asarray(images)[:,:,:,None]
-    masks = np.asarray(masks) // 255
-    print(images.shape, masks.shape)
-    print(set(masks.flatten()))
-    dims = masks.shape
-    masks = utils.to_categorical(masks).reshape(*dims, classes)
-    print(masks.shape)
-
-    _, height, width, _ = images.shape
-    print(height, width)
-    model = unet(height, width, features, depth, classes, padding)
-    optimizer = optimizers.SGD(lr=learning_rate, momentum=momentum, decay=decay)
-    model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
-    model.fit(images, masks, epochs=epochs, validation_split=validation_split)
-
-
-if __name__ == '__main__':
-    main()
+    return Model(inputs=inputs, outputs=probabilities)
