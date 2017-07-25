@@ -53,7 +53,7 @@ class PatientData(object):
 
     def load_images(self):
         glob_search = os.path.join(self.dicom_path, "*.dcm")
-        dicom_files = glob.glob(glob_search)
+        dicom_files = sorted(glob.glob(glob_search))
         self.all_images = []
         self.all_dicoms = []
         for dicom_file in dicom_files:
