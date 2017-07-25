@@ -71,7 +71,6 @@ def u_net(height, width, maps, features, depth, classes, padding='valid'):
         features //= 2
         x = upsampling_block(x, skips[i], features, padding)
 
-    # logits = Conv2D(filters=classes, kernel_size=(1,1))(x)
     probabilities = Conv2D(filters=classes, kernel_size=(1,1), activation='softmax')(x)
 
     return Model(inputs=inputs, outputs=probabilities)
