@@ -34,28 +34,7 @@ def upsampling_block(input_tensor, skip_tensor, filters, padding='valid'):
     x = Conv2D(filters, kernel_size=(3,3), padding=padding, activation='relu')(x)    
     return Conv2D(filters, kernel_size=(3,3), padding=padding, activation='relu')(x)    
 
-def unet_v1(height, width, padding='valid'):
-    inputs = Input(shape=(height, width, 1))
-    inputs = x
-
-    x, x1 = downsampling_block(x, 64,  padding)
-    x, x2 = downsampling_block(x, 128, padding)
-    x, x3 = downsampling_block(x, 256, padding)
-    x, x4 = downsampling_block(x, 512, padding)
-
-    x = Conv2D(filters=1024, kernel_size=(3,3), padding=padding, activation='relu')(x)
-    x = Conv2D(filters=1024, kernel_size=(3,3), padding=padding, activation='relu')(x)
-
-    x = upsampling_block(x, x4, 512, padding)
-    x = upsampling_block(x, x3, 256, padding)
-    x = upsampling_block(x, x2, 128, padding)
-    x = upsampling_block(x, x1, 64,  padding)
-
-    logits = Conv2D(filters=classes, kernel_size=(1,1))(x)
-
-    return Model(inputs=inputs, outputs=logits)
-
-def unet_v2(height, width, features, depth, classes, padding='valid'):
+def unet(height, width, features, depth, classes, padding='valid'):
     x = Input(shape=(height, width, 1))
     inputs = x
 
@@ -105,7 +84,7 @@ def main():
 
     _, height, width, _ = images.shape
     print(height, width)
-    model = unet_v2(height, width, features, depth, classes, padding)
+    model = unet(height, width, features, depth, classes, padding)
     optimizer = optimizers.SGD(lr=learning_rate, momentum=momentum, decay=decay)
     model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
     model.fit(images, masks, epochs=epochs, validation_split=validation_split)
