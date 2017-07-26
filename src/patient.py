@@ -37,7 +37,12 @@ class PatientData(object):
 
         # load all data into memory
         self.load_images()
-        self.load_masks()
+
+        # some patients do not have contour data, and that's ok
+        try:
+            self.load_masks()
+        except FileNotFoundError:
+            pass
 
     @property
     def images(self):
@@ -66,6 +71,23 @@ class PatientData(object):
         self.image_height, self.image_width = image.shape
         self.rotated = (plan.pixel_array.shape != image.shape)
 
+    def load_contour(self, filename):
+        # strip out path head "patientXX/"
+        match = re.search("patient../(.*)", filename)
+        path = os.path.join(self.directory, match.group(1))
+        x, y = np.loadtxt(path).T
+        if self.rotated:
+            x, y = y, self.image_height - x
+        return x, y
+
+    def contour_to_mask(self, x, y, norm=255):
+        BW_8BIT = 'L'
+        polygon = list(zip(x, y))
+        image_dims = (self.image_width, self.image_height)
+        img = Image.new(BW_8BIT, image_dims, color=0)
+        ImageDraw.Draw(img).polygon(polygon, outline=1, fill=1)
+        return norm * np.array(img, dtype='uint8')
+
     def load_masks(self):
         with open(self.contour_list_file, 'r') as f:
             files = [line.strip() for line in f.readlines()]
@@ -77,41 +99,18 @@ class PatientData(object):
         self.endocardium_masks = []
         self.epicardium_masks = []
         for inner_file, outer_file in zip(inner_files, outer_files):
-            # strip out path head "patientXX/"
-            match = re.search("patient../(.*)", inner_file)
-            inner_path = os.path.join(self.directory, match.group(1))
-            inner_x, inner_y = np.loadtxt(inner_path).T
-            if self.rotated:
-                x = inner_y
-                y = self.image_height - inner_x
-                inner_x, inner_y = x, y
+            inner_x, inner_y = self.load_contour(inner_file)
+            outer_x, outer_y = self.load_contour(outer_file)
 
-            match = re.search("patient../(.*)", outer_file)
-            outer_path = os.path.join(self.directory, match.group(1))
-            outer_x, outer_y = np.loadtxt(outer_path).T
-            if self.rotated:
-                x = outer_y
-                y = self.image_height - outer_x
-                outer_x, outer_y = x, y
-
+            # get frame number
             match = re.search("P..-(....)-.contour", inner_file)
             frame_number = int(match.group(1))
             self.labeled.append(frame_number)
 
-            BW_8BIT = 'L'
-            polygon = list(zip(inner_x, inner_y))
-            image_dims = (self.image_width, self.image_height)
-            img = Image.new(BW_8BIT, image_dims, color=0)
-            ImageDraw.Draw(img).polygon(polygon, outline=1, fill=1)
-            mask = 255*np.array(img, dtype='uint8')
-            self.endocardium_masks.append(mask)
-
-            polygon = list(zip(outer_x, outer_y))
-            image_dims = (self.image_width, self.image_height)
-            img = Image.new(BW_8BIT, image_dims, color=0)
-            ImageDraw.Draw(img).polygon(polygon, outline=1, fill=1)
-            mask = 255*np.array(img, dtype='uint8')
-            self.epicardium_masks.append(mask)
+            inner_mask = self.contour_to_mask(inner_x, inner_y)
+            self.endocardium_masks.append(inner_mask)
+            outer_mask = self.contour_to_mask(outer_x, outer_y)
+            self.epicardium_masks.append(outer_mask)
             
     def write_video(self, outfile, FPS = 24):
         import cv2
