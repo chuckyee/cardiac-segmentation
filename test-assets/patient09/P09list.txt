@@ -1,2 +1,6 @@
 .\patient09\P09contours-manual\P09-0020-icontour-manual.txt
 .\patient09\P09contours-manual\P09-0020-ocontour-manual.txt
+.\patient09\P09contours-manual\P09-0022-icontour-manual.txt
+.\patient09\P09contours-manual\P09-0022-ocontour-manual.txt
+.\patient09\P09contours-manual\P09-0023-icontour-manual.txt
+.\patient09\P09contours-manual\P09-0023-ocontour-manual.txt
