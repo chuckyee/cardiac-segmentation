@@ -3,13 +3,14 @@ from __future__ import division, print_function
 import os
 import glob
 import numpy as np
+from math import ceil
 
 from keras import utils
 from keras.preprocessing.image import ImageDataGenerator
 
 import patient
 
-def create_generators(data_dir, batch_size, validation_split):
+def create_generators(data_dir, batch_size, validation_split=0.0):
     glob_search = os.path.join(data_dir, "patient*")
     patient_dirs = glob.glob(glob_search)
 
@@ -30,6 +31,7 @@ def create_generators(data_dir, batch_size, validation_split):
     classes = len(set(masks[0].flatten())) # get num classes from first image
     masks = utils.to_categorical(masks).reshape(*dims, classes)
 
+    # split out last %(validation_split) of images as validation set
     split_index = int((1-validation_split) * len(images))
 
     train_generator = ImageDataGenerator().flow(
@@ -37,9 +39,17 @@ def create_generators(data_dir, batch_size, validation_split):
         masks[:split_index],
         batch_size=batch_size)
 
-    val_generator = ImageDataGenerator().flow(
-        images[split_index:],
-        masks[split_index:],
-        batch_size=batch_size)
+    train_steps_per_epoch = ceil(split_index / batch_size)
 
-    return train_generator, val_generator
+    if validation_split > 0.0:
+        val_generator = ImageDataGenerator().flow(
+            images[split_index:],
+            masks[split_index:],
+            batch_size=batch_size)
+    else:
+        val_generator = None
+
+    val_steps_per_epoch = ceil((len(images) - split_index) / batch_size)
+
+    return (train_generator, train_steps_per_epoch,
+            val_generator, val_steps_per_epoch)
