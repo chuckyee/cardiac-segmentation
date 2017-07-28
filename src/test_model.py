@@ -89,9 +89,11 @@ class TestModel(unittest.TestCase):
         features = 64
         depth = 4
         classes = 2
+        temperature = 1.0
         padding = 'valid'
-        m = model.u_net(height, width, maps, features, depth, classes, padding)
-        self.assertEqual(len(m.layers), 36)
+        m = model.u_net(height, width, maps, features, depth, classes,
+                        temperature, padding)
+        self.assertEqual(len(m.layers), 56)
 
         # input/output dimensions
         self.assertTupleEqual(K.int_shape(m.input), (None, 572, 572, 1))
@@ -101,40 +103,60 @@ class TestModel(unittest.TestCase):
         layer_output_dims = [
             (None, 572, 572, 1), # input
             (None, 570, 570, 64),
+            (None, 570, 570, 64),
             (None, 568, 568, 64), # skip 1
+            (None, 568, 568, 64),
             (None, 284, 284, 64), # max pool 2x2
             (None, 282, 282, 128),
+            (None, 282, 282, 128),
             (None, 280, 280, 128), # skip 2
+            (None, 280, 280, 128),
             (None, 140, 140, 128), # max pool 2x2
             (None, 138, 138, 256),
+            (None, 138, 138, 256),
             (None, 136, 136, 256), # skip 3
+            (None, 136, 136, 256),
             (None, 68, 68, 256), # max pool 2x2
             (None, 66, 66, 512),
+            (None, 66, 66, 512),
             (None, 64, 64, 512), # skip 4
+            (None, 64, 64, 512),
             (None, 32, 32, 512), # max pool 2x2
             (None, 30, 30, 1024),
+            (None, 30, 30, 1024),
+            (None, 28, 28, 1024),
             (None, 28, 28, 1024),
             (None, 56, 56, 512), # up-conv 2x2
             (None, 56, 56, 512), # cropping of skip 4
             (None, 56, 56, 1024), # concat
             (None, 54, 54, 512),
+            (None, 54, 54, 512),
+            (None, 52, 52, 512),
             (None, 52, 52, 512),
             (None, 104, 104, 256), # up-conv 2x2
             (None, 104, 104, 256), # cropping of skip 3
             (None, 104, 104, 512), # concat
             (None, 102, 102, 256),
+            (None, 102, 102, 256),
+            (None, 100, 100, 256),
             (None, 100, 100, 256),
             (None, 200, 200, 128), # up-conv 2x2
             (None, 200, 200, 128), # cropping of skip 2
             (None, 200, 200, 256), # concat
             (None, 198, 198, 128),
+            (None, 198, 198, 128),
+            (None, 196, 196, 128),
             (None, 196, 196, 128),
             (None, 392, 392, 64), # up-conv 2x2
             (None, 392, 392, 64), # cropping of skip 1
             (None, 392, 392, 128), # concat
             (None, 390, 390, 64),
+            (None, 390, 390, 64),
             (None, 388, 388, 64),
-            (None, 388, 388, 2) # output segmentation map
+            (None, 388, 388, 64),
+            (None, 388, 388, 2), # output segmentation map
+            (None, 388, 388, 2),
+            (None, 388, 388, 2),
         ]
         for layer, shape in zip(m.layers, layer_output_dims):
             self.assertTupleEqual(layer.output_shape, shape)
