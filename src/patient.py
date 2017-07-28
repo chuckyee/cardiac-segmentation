@@ -96,11 +96,15 @@ class PatientData(object):
         outer_files = [path.replace("\\", "/") for path in files[1::2]]
 
         self.labeled = []
+        self.endocardium_contours = []
+        self.epicardium_contours = []
         self.endocardium_masks = []
         self.epicardium_masks = []
         for inner_file, outer_file in zip(inner_files, outer_files):
             inner_x, inner_y = self.load_contour(inner_file)
+            self.endocardium_contours.append((inner_x, inner_y))
             outer_x, outer_y = self.load_contour(outer_file)
+            self.epicardium_contours.append((outer_x, outer_y))
 
             # get frame number
             match = re.search("P..-(....)-.contour", inner_file)

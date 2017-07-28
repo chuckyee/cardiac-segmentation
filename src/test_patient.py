@@ -27,6 +27,8 @@ class TestPatientData(unittest.TestCase):
         self.assertEqual(p.labeled, [20, 22, 23])
         self.assertEqual(len(p.endocardium_masks), 3)
         self.assertEqual(len(p.epicardium_masks), 3)
+        self.assertEqual(len(p.endocardium_contours), 3)
+        self.assertEqual(len(p.epicardium_contours), 3)
 
         # check dicom MRI image
         plan = dicom.read_file(self.directory + "P09dicom/P09-0000.dcm")
