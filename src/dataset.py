@@ -10,6 +10,17 @@ from keras.preprocessing.image import ImageDataGenerator
 
 import patient
 
+
+def elastic_deformation(a, sigma):
+    augmentation_args = {
+        'rotation_range': 10,
+        'width_shift_range': 0.2,
+        'height_shift_range': 0.2,
+        'shear_range': 0.1,
+        'zoom_range': 0.1,
+        'fill_mode' : 'reflect',
+    }
+
 def create_generators(data_dir, batch_size, validation_split=0.0):
     glob_search = os.path.join(data_dir, "patient*")
     patient_dirs = glob.glob(glob_search)
