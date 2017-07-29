@@ -2,81 +2,18 @@
 
 from __future__ import division, print_function
 
+import argparse
+
 from keras import losses, optimizers, utils
 from keras.optimizers import SGD, RMSprop, Adagrad, Adadelta, Adam, Adamax, Nadam
 from keras.callbacks import ModelCheckpoint
 from keras import backend as K
 
-import argparse
-import glob
-
-import patient
-import model
 import dataset
+import model
+import loss
+import opts
 
-
-def parse_arguments():
-    parser = argparse.ArgumentParser(description="Train U-Net to segment right ventricles from cardiac MRI images.")
-    parser.add_argument('-d', '--data_dir', default='.', help="Directory containing patientXX/ directories")
-    parser.add_argument('-o', '--outfile', default='weights-final.hdf5', help="Directory to write output data")
-    parser.add_argument('--features', default=64, type=int, help="Number of features maps after first convolutional layer.")
-    parser.add_argument('--depth', default=4, type=int, help="Number of downsampled convolutional blocks.")
-    # parser.add_argument('--classes')
-    parser.add_argument('--padding', default='same', help="Padding in convolutional layers. Either `same' or `valid'.")
-    parser.add_argument('--saved_weights', help="Begin training from model weights saved in specified file.")
-    parser.add_argument('--learning_rate', default=None, help="Optimizer learning rate.")
-    parser.add_argument('--momentum', default=None, type=float, help="Momentum for SGD optimizer.")
-    parser.add_argument('--decay', default=None, type=float, help="Learning rate decay (not applicable for nadam).")
-    parser.add_argument('--optimizer', default='adam', help="Optimizer: sgd, rmsprop, adagrad, adadelta, adam, adamax, or nadam.")
-    parser.add_argument('--loss', default='pixel', help="Loss function: `pixel' for pixel-wise cross entropy, `dice' for dice coefficient.")
-    parser.add_argument('--checkpoint', action='store_true', help="Write model weights after each epoch if validation accuracy improves.")
-    parser.add_argument('-e', '--epochs', default=20, type=int, help="Number of epochs to train.")
-    parser.add_argument('-b', '--batch_size', default=32, type=int, help="Mini-batch size for training.")
-    parser.add_argument('--validation_split', default=0.2, type=float, help="Percentage of training data to hold out for validation.")
-    args = parser.parse_args()
-    return args
-
-def dice_coef(y_true, y_pred):
-    # input tensors have shape (batch_size, height, width, classes)
-    smooth = 1.
-    # y_true_f = K.flatten(y_true)
-    # y_pred_f = K.flatten(y_pred)
-    # intersection = K.sum(y_true_f * y_pred_f)
-    # return (2. * intersection + smooth) / (K.sum(y_true_f) + K.sum(y_pred_f) + smooth)
-
-    # y_true_flat = K.flatten(y_true)
-    # y_pred_flat = K.flatten(y_pred)
-    # intersection = K.sum(y_true_flat * y_pred_flat)
-    # dice = (2. * intersection + smooth) / (K.sum(y_true_flat) + K.sum(y_pred_flat) + smooth)
-    # return dice
-
-    # y_pred_int = y_pred
-    # intersection = K.sum(y_true * y_pred_int)
-    # area1 = K.sum(y_true)
-    # area2 = K.sum(y_pred_int)
-    # dice = (2 * intersection + smooth) / (area1 + area2 + smooth)
-    # return dice
-
-    y_pred_int = y_pred
-    intersection = K.sum(y_true * y_pred_int, axis=[0, 1, 2])
-    area1 = K.sum(y_true)
-    area2 = K.sum(y_pred_int)
-    dice = (2 * intersection + smooth) / (area1 + area2 + smooth)
-    return dice[0]
-
-    # _, _, _, classes = K.int_shape(y_true)
-    # dice_coefs = []
-    # for i in range(classes):
-    #     y_true_class = y_true[:,:,:,i]
-    #     y_pred_class = K.round(y_pred[:,:,:,i])
-    #     intersection = K.sum(y_true_class * y_pred_class)
-    #     area1 = K.sum(y_true_class)
-    #     area2 = K.sum(y_pred_class)
-    #     dice_coefs.append((2 * intersection + smooth) / (area1 + area2 + smooth))
-    # return dice_coefs[1]
-
-def dice_coef_loss(y_true, y_pred):
-    return -dice_coef(y_true, y_pred)
 
 def select_optimizer(optimizer_name, optimizer_args):
     optimizers = {
@@ -94,10 +31,11 @@ def select_optimizer(optimizer_name, optimizer_args):
     return optimizers[optimizer_name](**optimizer_args)
 
 def train():
-    args = parse_arguments()
+    args = opts.parse_arguments()
 
-    train_generator, val_generator = dataset.create_generators(
-        args.data_dir, args.batch_size, args.validation_split)
+    train_generator, train_steps_per_epoch, \
+        val_generator, val_steps_per_epoch = dataset.create_generators(
+            args.data_dir, args.batch_size, args.validation_split)
 
     # get image dimensions from first batch
     images, masks = next(train_generator)
@@ -108,13 +46,15 @@ def train():
                     features=args.features,
                     depth=args.depth,
                     classes=classes,
-                    padding=args.padding)
+                    temperature=args.temperature,
+                    padding=args.padding,
+                    batch_norm=args.batch_norm)
 
-    if args.saved_weights:
-        m.load_weights(args.saved_weights)
+    if args.load_weights:
+        m.load_weights(args.load_weights)
 
-    # instantiate optimizer, and only keep args that have been set (not all
-    # optimizers have args like `momentum' or `decay'
+    # instantiate optimizer, and only keep args that have been set
+    # (not all optimizers have args like `momentum' or `decay')
     optimizer_args = {
         'lr':       args.learning_rate,
         'momentum': args.momentum,
@@ -125,29 +65,50 @@ def train():
             del optimizer_args[k]
     optimizer = select_optimizer(args.optimizer, optimizer_args)
 
-    # select loss function (pixel-wise crossentropy or dice coefficient)
+    # select loss function: pixel-wise crossentropy, soft dice or soft
+    # jaccard coefficient
     if args.loss == 'pixel':
-        loss = 'categorical_crossentropy'
-        metrics = ['accuracy']
+        lossfunc = 'categorical_crossentropy'
     elif args.loss == 'dice':
-        loss = dice_coef_loss
-        metrics = [dice_coef]
+        def lossfunc(y_true, y_pred):
+            return loss.sorensen_dice_loss(y_true, y_pred, [0.1, 0.9])
+    elif args.loss == 'jaccard':
+        def lossfunc(y_true, y_pred):
+            return loss.jaccard_loss(y_true, y_pred, [0.1, 0.9])
     else:
         raise Exception("Unknown loss ({})".format(args.loss))
 
-    m.compile(optimizer=optimizer, loss=loss, metrics=metrics)
+    def dice(y_true, y_pred):
+        batch_dice_coefs = loss.sorensen_dice(y_true, y_pred, axis=[1, 2])
+        dice_coefs = K.mean(batch_dice_coefs, axis=0)
+        return dice_coefs[1]
+
+    def jaccard(y_true, y_pred):
+        batch_jaccard_coefs = loss.jaccard(y_true, y_pred, axis=[1, 2])
+        jaccard_coefs = K.mean(batch_jaccard_coefs, axis=0)
+        return jaccard_coefs[1]
+
+    metrics = ['accuracy', dice, jaccard]
+
+    m.compile(optimizer=optimizer, loss=lossfunc, metrics=metrics)
 
     # automatic saving of model during training
     if args.checkpoint:
         if args.loss == 'pixel':
             filepath="weights-{epoch:02d}-{val_acc:.4f}.hdf5"
             monitor = 'val_acc'
-        else:
-            filepath="weights-{epoch:02d}-{val_dice_coef:.4f}.hdf5"
-            monitor='val_dice_coef'
+            mode = 'max'
+        elif args.loss == 'dice':
+            filepath="weights-{epoch:02d}-{val_dice:.4f}.hdf5"
+            monitor='val_dice'
+            mode = 'min'
+        elif args.loss == 'jaccard':
+            filepath="weights-{epoch:02d}-{val_jaccard:.4f}.hdf5"
+            monitor='val_jaccard'
+            mode = 'min'
         checkpoint = ModelCheckpoint(
             filepath, monitor=monitor, verbose=1,
-            save_best_only=True, mode='max')
+            save_best_only=True, mode=mode)
         callbacks = [checkpoint]
     else:
         callbacks = []
@@ -155,9 +116,9 @@ def train():
     # train
     m.fit_generator(train_generator,
                     epochs=args.epochs,
-                    steps_per_epoch=8,
+                    steps_per_epoch=train_steps_per_epoch,
                     validation_data=val_generator,
-                    validation_steps=20,
+                    validation_steps=val_steps_per_epoch,
                     callbacks=callbacks)
 
     m.save(args.outfile)
