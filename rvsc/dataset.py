@@ -4,6 +4,8 @@ import os
 import glob
 import numpy as np
 from math import ceil
+from scipy.ndimage.interpolation import map_coordinates
+from scipy.ndimage.filters import gaussian_filter
 
 from keras import utils
 from keras.preprocessing import image as keras_image
@@ -35,8 +37,31 @@ def load_images(data_dir):
 
     return images, masks
 
-def random_elastic_deformation(x, a, sigma):
-    return x
+def random_elastic_deformation(image, alpha, sigma, random_state=None):
+    """Elastic deformation of images as described in [Simard2003]_.
+    .. [Simard2003] Simard, Steinkraus and Platt, "Best Practices for
+       Convolutional Neural Networks applied to Visual Document Analysis", in
+       Proc. of the International Conference on Document Analysis and
+       Recognition, 2003.
+    """
+    assert len(image.shape) == 3
+
+    if random_state is None:
+        random_state = np.random.RandomState(None)
+
+    height, width, channels = image.shape
+
+    dx = gaussian_filter(2*random_state.rand(height, width) - 1,
+                         sigma, mode="constant", cval=0) * alpha
+    dy = gaussian_filter(2*random_state.rand(height, width) - 1,
+                         sigma, mode="constant", cval=0) * alpha
+
+    x, y = np.meshgrid(np.arange(height), np.arange(width), indexing='ij')
+    indices = (np.repeat(np.ravel(x+dx), 3),
+               np.repeat(np.ravel(y+dy), 3),
+               np.tile([0,1,2], height*width))
+
+    return map_coordinates(image, indices, order=1).reshape((height, width, channels))
 
 class Iterator(object):
     def __init__(self, images, masks, batch_size):
@@ -50,9 +75,11 @@ class Iterator(object):
             'height_shift_range': 0.1,
             'shear_range': 0.1,
             'zoom_range': 0.05,
-            'fill_mode' : 'reflect',
+            'fill_mode' : 'nearest',
         }
         self.idg = ImageDataGenerator(**augmentation_args)
+        self.alpha = 500
+        self.sigma = 20
 
     def __next__(self):
         return self.next()
@@ -70,9 +97,10 @@ class Iterator(object):
             _, _, channels = image.shape
             stacked = np.concatenate((image, mask), axis=2)
             augmented = self.idg.random_transform(stacked)
-            augmented = random_elastic_deformation(augmented, 0, 0)
+            augmented = random_elastic_deformation(
+                augmented, self.alpha, self.sigma)
             augmented_images.append(augmented[:,:,:channels])
-            augmented_masks.append(augmented[:,:,channels:])
+            augmented_masks.append(np.round(augmented[:,:,channels:]))
         return np.asarray(augmented_images), np.asarray(augmented_masks)
 
 def create_generators(data_dir, batch_size, validation_split=0.0):
