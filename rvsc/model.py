@@ -9,8 +9,8 @@ from keras import backend as K
 
 def downsampling_block(input_tensor, filters, padding='valid', batch_norm=False):
     _, height, width, _ = K.int_shape(input_tensor)
-    assert(height % 2 == 0)
-    assert(width % 2 == 0)
+    assert height % 2 == 0
+    assert width % 2 == 0
 
     x = Conv2D(filters, kernel_size=(3,3), padding=padding)(input_tensor)
     if batch_norm:
@@ -33,8 +33,8 @@ def upsampling_block(input_tensor, skip_tensor, filters, padding='valid',
     _, s_height, s_width, _ = K.int_shape(skip_tensor)
     h_crop = s_height - x_height
     w_crop = s_width - x_width
-    assert(h_crop >= 0)
-    assert(w_crop >= 0)
+    assert h_crop >= 0
+    assert w_crop >= 0
     if h_crop == 0 and w_crop == 0:
         y = skip_tensor
     else:
