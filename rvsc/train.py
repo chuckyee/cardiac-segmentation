@@ -9,10 +9,7 @@ from keras.optimizers import SGD, RMSprop, Adagrad, Adadelta, Adam, Adamax, Nada
 from keras.callbacks import ModelCheckpoint
 from keras import backend as K
 
-from . import dataset
-from . import model
-from . import loss
-from . import opts
+from rvsc import dataset, model, loss, opts
 
 
 def select_optimizer(optimizer_name, optimizer_args):
@@ -119,7 +116,8 @@ def train():
                     steps_per_epoch=train_steps_per_epoch,
                     validation_data=val_generator,
                     validation_steps=val_steps_per_epoch,
-                    callbacks=callbacks)
+                    callbacks=callbacks,
+                    verbose=2)
 
     m.save(args.outfile)
 
