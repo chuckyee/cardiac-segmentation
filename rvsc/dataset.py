@@ -9,7 +9,7 @@ from keras import utils
 from keras.preprocessing import image as keras_image
 from keras.preprocessing.image import ImageDataGenerator
 
-import patient
+from . import patient
 
 
 def load_images(data_dir):

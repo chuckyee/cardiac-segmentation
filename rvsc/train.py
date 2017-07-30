@@ -9,10 +9,10 @@ from keras.optimizers import SGD, RMSprop, Adagrad, Adadelta, Adam, Adamax, Nada
 from keras.callbacks import ModelCheckpoint
 from keras import backend as K
 
-import dataset
-import model
-import loss
-import opts
+from . import dataset
+from . import model
+from . import loss
+from . import opts
 
 
 def select_optimizer(optimizer_name, optimizer_args):
