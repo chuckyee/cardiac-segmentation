@@ -3,7 +3,8 @@ from __future__ import division, print_function
 import unittest
 
 from keras import backend as K
-import loss
+
+from rvsc import loss
 
 class TestModel(unittest.TestCase):
     def test_sorensen_dice(self):

@@ -2,7 +2,7 @@ from __future__ import division, print_function
 
 import unittest
 
-import dataset
+from rvsc import dataset
 
 class TestDataset(unittest.TestCase):
     def test_keras_generator(self):

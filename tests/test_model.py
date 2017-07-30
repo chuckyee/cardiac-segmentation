@@ -4,7 +4,8 @@ import unittest
 
 from keras.layers import Input
 from keras import backend as K
-import model
+
+from rvsc import model
 
 class TestModel(unittest.TestCase):
     def test_downsampling(self):

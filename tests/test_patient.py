@@ -5,7 +5,8 @@ import unittest
 import os
 import dicom
 import numpy as np
-import patient
+
+from rvsc import patient
 
 class TestPatientData(unittest.TestCase):
     def setUp(self):

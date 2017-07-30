@@ -7,5 +7,5 @@ setup(name='rvsc',
       author='Chuck-Hou Yee',
       author_email='chuckyee@gmail.com',
       license='MIT',
-      packages=['src'],
+      packages=['rvsc'],
       zip_safe=False)

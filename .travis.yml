@@ -3,4 +3,5 @@ python:
   - "3.6"
 install:
   - pip install -r requirements.txt
-script: cd src && python -m unittest -v
+  - pip install .
+script: cd tests && python -m unittest -v
