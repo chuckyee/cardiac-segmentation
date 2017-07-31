@@ -9,7 +9,7 @@ from keras.optimizers import SGD, RMSprop, Adagrad, Adadelta, Adam, Adamax, Nada
 from keras.callbacks import ModelCheckpoint
 from keras import backend as K
 
-from rvsc import dataset, model, loss, opts
+from rvseg import dataset, model, loss, opts
 
 
 def select_optimizer(optimizer_name, optimizer_args):
@@ -46,6 +46,8 @@ def train():
                     temperature=args.temperature,
                     padding=args.padding,
                     batch_norm=args.batch_norm)
+
+    m.summary()
 
     if args.load_weights:
         m.load_weights(args.load_weights)
@@ -98,11 +100,11 @@ def train():
         elif args.loss == 'dice':
             filepath="weights-{epoch:02d}-{val_dice:.4f}.hdf5"
             monitor='val_dice'
-            mode = 'min'
+            mode = 'max'
         elif args.loss == 'jaccard':
             filepath="weights-{epoch:02d}-{val_jaccard:.4f}.hdf5"
             monitor='val_jaccard'
-            mode = 'min'
+            mode = 'max'
         checkpoint = ModelCheckpoint(
             filepath, monitor=monitor, verbose=1,
             save_best_only=True, mode=mode)
