@@ -28,7 +28,7 @@ def parse_arguments():
 
     parser.add_argument('--checkpoint', default=False, action='store_true',
                         help="Write model weights after each epoch if validation accuracy improves.")
-    parser.add_argument('--batch_norm', default=False, action='store_true',
+    parser.add_argument('--batchnorm', default=False, action='store_true',
                         help="Apply batch normalization before nonlinearities.")
     args = parser.parse_args()
 

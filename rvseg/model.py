@@ -2,30 +2,35 @@ from __future__ import division, print_function
 
 from keras.layers import Input, Conv2D, Conv2DTranspose
 from keras.layers import MaxPooling2D, Cropping2D, Concatenate
-from keras.layers import Lambda, Activation, BatchNormalization
+from keras.layers import Lambda, Activation, BatchNormalization, Dropout
 from keras.models import Model
 from keras import backend as K
 
 
-def downsampling_block(input_tensor, filters, padding='valid', batch_norm=False):
+def downsampling_block(input_tensor, filters, padding='valid',
+                       batchnorm=False, dropout=0.0):
     _, height, width, _ = K.int_shape(input_tensor)
     assert height % 2 == 0
     assert width % 2 == 0
 
     x = Conv2D(filters, kernel_size=(3,3), padding=padding)(input_tensor)
-    if batch_norm:
+    if batchnorm:
         x = BatchNormalization()(x)
     x = Activation('relu')(x)
+    if dropout > 0:
+        x = Dropout(dropout)(x)
 
     x = Conv2D(filters, kernel_size=(3,3), padding=padding)(x)
-    if batch_norm:
+    if batchnorm:
         x = BatchNormalization()(x)
     x = Activation('relu')(x)
+    if dropout > 0:
+        x = Dropout(dropout)(x)
 
     return MaxPooling2D(pool_size=(2,2))(x), x
 
 def upsampling_block(input_tensor, skip_tensor, filters, padding='valid',
-                     batch_norm=False):
+                     batchnorm=False, dropout=0.0):
     x = Conv2DTranspose(filters, kernel_size=(2,2), strides=(2,2))(input_tensor)
 
     # compute amount of cropping needed for skip_tensor
@@ -44,19 +49,23 @@ def upsampling_block(input_tensor, skip_tensor, filters, padding='valid',
     x = Concatenate()([x, y])
 
     x = Conv2D(filters, kernel_size=(3,3), padding=padding)(x)
-    if batch_norm:
+    if batchnorm:
         x = BatchNormalization()(x)
     x = Activation('relu')(x)
+    if dropout > 0:
+        x = Dropout(dropout)(x)
 
     x = Conv2D(filters, kernel_size=(3,3), padding=padding)(x)
-    if batch_norm:
+    if batchnorm:
         x = BatchNormalization()(x)
     x = Activation('relu')(x)
+    if dropout > 0:
+        x = Dropout(dropout)(x)
 
     return x
 
 def u_net(height, width, maps, features, depth, classes, temperature=1.0,
-          padding='valid', batch_norm=False):
+          padding='valid', batchnorm=False, dropout=0.0):
     """Generate class U-Net model introduced in
       "U-Net: Convolutional Networks for Biomedical Image Segmentation"
       O. Ronneberger, P. Fischer, T. Brox (2015)
@@ -71,6 +80,8 @@ def u_net(height, width, maps, features, depth, classes, temperature=1.0,
       depth  - number of downsampling operations (4 in paper)
       classes - number of output classes (2 in paper)
       padding - 'valid' (used in paper) or 'same'
+      batchnorm - include batch normalization layers before activations
+      dropout - fraction of units to dropout, 0 to keep all units
 
     Output:
       U-Net model expecting input shape (height, width, maps) and generates
@@ -82,28 +93,33 @@ def u_net(height, width, maps, features, depth, classes, temperature=1.0,
 
     skips = []
     for i in range(depth):
-        x, x0 = downsampling_block(x, features,  padding, batch_norm)
+        x, x0 = downsampling_block(x, features, padding,
+                                   batchnorm, dropout)
         skips.append(x0)
         features *= 2
 
     x = Conv2D(filters=features, kernel_size=(3,3), padding=padding)(x)
-    if batch_norm:
+    if batchnorm:
         x = BatchNormalization()(x)
     x = Activation('relu')(x)
+    if dropout > 0:
+        x = Dropout(dropout)(x)
 
     x = Conv2D(filters=features, kernel_size=(3,3), padding=padding)(x)
-    if batch_norm:
+    if batchnorm:
         x = BatchNormalization()(x)
     x = Activation('relu')(x)
+    if dropout > 0:
+        x = Dropout(dropout)(x)
 
     for i in reversed(range(depth)):
         features //= 2
-        x = upsampling_block(x, skips[i], features, padding, batch_norm)
+        x = upsampling_block(x, skips[i], features, padding,
+                             batchnorm, dropout)
 
     x = Conv2D(filters=classes, kernel_size=(1,1))(x)
 
     logits = Lambda(lambda z: z/temperature)(x)
     probabilities = Activation('softmax')(logits)
-    # probabilities = Conv2D(filters=classes, kernel_size=(1,1), activation='softmax')(x)
 
     return Model(inputs=inputs, outputs=probabilities)

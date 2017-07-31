@@ -5,7 +5,7 @@ import unittest
 from keras.layers import Input
 from keras import backend as K
 
-from rvsc import model
+from rvseg import model
 
 class TestModel(unittest.TestCase):
     def test_downsampling(self):
@@ -161,3 +161,76 @@ class TestModel(unittest.TestCase):
         ]
         for layer, shape in zip(m.layers, layer_output_dims):
             self.assertTupleEqual(layer.output_shape, shape)
+
+    def check_layer_dims(self, model):
+        # if we include only one of batch normalization or dropout,
+        # then the shape of the network should be the same.
+        layer_output_dims = [
+            (None, 10, 10, 1), # input
+            (None, 10, 10, 4), # conv2D
+            (None, 10, 10, 4), # batchnorm | reLU
+            (None, 10, 10, 4), # reLU      | dropout
+            (None, 10, 10, 4), # conv2D
+            (None, 10, 10, 4), # batchnorm | reLU
+            (None, 10, 10, 4), # reLU      | dropout
+            (None, 5, 5, 4),   # max pool 2x2
+            (None, 5, 5, 8),   # conv2D
+            (None, 5, 5, 8),   # batchnorm | reLU
+            (None, 5, 5, 8),   # reLU      | dropout
+            (None, 5, 5, 8),   # conv2D
+            (None, 5, 5, 8),   # batchnorm | reLU
+            (None, 5, 5, 8),   # reLU      | dropout
+            (None, 10, 10, 4), # up-conv 2x2
+            (None, 10, 10, 8), # concat
+            (None, 10, 10, 4), # conv2D
+            (None, 10, 10, 4), # batchnorm | reLU
+            (None, 10, 10, 4), # reLU      | dropout
+            (None, 10, 10, 4), # conv2D
+            (None, 10, 10, 4), # batchnorm | reLU
+            (None, 10, 10, 4), # reLU      | dropout
+            (None, 10, 10, 2), # output segmentation map
+            (None, 10, 10, 2), # (temperature)
+            (None, 10, 10, 2), # softmax
+        ]
+        for layer, shape in zip(model.layers, layer_output_dims):
+            self.assertTupleEqual(layer.output_shape, shape)
+
+    def test_batchnorm(self):
+        # only batch norm, no dropout
+        height, width, maps = 10, 10, 1
+        features = 4
+        depth = 1
+        classes = 2
+        temperature = 1.0
+        padding = 'same'
+        batchnorm = True
+        dropout = False
+        m = model.u_net(height, width, maps, features, depth, classes,
+                        temperature, padding, batchnorm, dropout)
+        self.assertEqual(len(m.layers), 25)
+
+        # input/output dimensions
+        self.assertTupleEqual(K.int_shape(m.input), (None, 10, 10, 1))
+        self.assertTupleEqual(K.int_shape(m.output), (None, 10, 10, 2))
+
+        self.check_layer_dims(model)
+
+    def test_dropout(self):
+        # only dropout, no batch norm
+        height, width, maps = 10, 10, 1
+        features = 4
+        depth = 1
+        classes = 2
+        temperature = 1.0
+        padding = 'same'
+        batchnorm = False
+        dropout = True
+        m = model.u_net(height, width, maps, features, depth, classes,
+                        temperature, padding, batchnorm, dropout)
+        self.assertEqual(len(m.layers), 25)
+
+        # input/output dimensions
+        self.assertTupleEqual(K.int_shape(m.input), (None, 10, 10, 1))
+        self.assertTupleEqual(K.int_shape(m.output), (None, 10, 10, 2))
+
+        self.check_layer_dims(model)

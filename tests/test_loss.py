@@ -4,7 +4,7 @@ import unittest
 
 from keras import backend as K
 
-from rvsc import loss
+from rvseg import loss
 
 class TestModel(unittest.TestCase):
     def test_sorensen_dice(self):

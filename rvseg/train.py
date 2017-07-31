@@ -45,7 +45,7 @@ def train():
                     classes=classes,
                     temperature=args.temperature,
                     padding=args.padding,
-                    batch_norm=args.batch_norm)
+                    batchnorm=args.batchnorm)
 
     m.summary()
 
