@@ -213,7 +213,7 @@ class TestModel(unittest.TestCase):
         self.assertTupleEqual(K.int_shape(m.input), (None, 10, 10, 1))
         self.assertTupleEqual(K.int_shape(m.output), (None, 10, 10, 2))
 
-        self.check_layer_dims(model)
+        self.check_layer_dims(m)
 
     def test_dropout(self):
         # only dropout, no batch norm
@@ -233,4 +233,4 @@ class TestModel(unittest.TestCase):
         self.assertTupleEqual(K.int_shape(m.input), (None, 10, 10, 1))
         self.assertTupleEqual(K.int_shape(m.output), (None, 10, 10, 2))
 
-        self.check_layer_dims(model)
+        self.check_layer_dims(m)
