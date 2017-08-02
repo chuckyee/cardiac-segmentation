@@ -14,21 +14,32 @@ from keras.preprocessing.image import ImageDataGenerator
 from . import patient
 
 
-def load_images(data_dir):
+def load_images(data_dir, mask='both'):
+    assert mask in ['inner', 'outer', 'both']
+
     glob_search = os.path.join(data_dir, "patient*")
     patient_dirs = glob.glob(glob_search)
+    if len(patient_dirs) == 0:
+        raise Exception("No patient directors found in {}".format(data_dir))
 
     # load all images into memory (dataset is small)
     images = []
-    masks = []
+    inner_masks = []
+    outer_masks = []
     for patient_dir in patient_dirs:
         p = patient.PatientData(patient_dir)
         images += p.images
-        masks += p.endocardium_masks
+        inner_masks += p.endocardium_masks
+        outer_masks += p.epicardium_masks
 
     # reshape to account for channel dimension
     images = np.asarray(images)[:,:,:,None]
-    masks = np.asarray(masks) // 255 # convert grayscale mask to {0, 1} mask
+    if mask == 'inner':
+        masks = np.asarray(inner_masks) // 255
+    elif mask == 'outer':
+        masks = np.asarray(outer_masks) // 255
+    elif mask == 'both':
+        masks = np.asarray(inner_masks) // 255 + np.asarray(outer_masks) // 255
 
     # one-hot encode masks
     dims = masks.shape
@@ -57,9 +68,9 @@ def random_elastic_deformation(image, alpha, sigma, random_state=None):
                          sigma, mode="constant", cval=0) * alpha
 
     x, y = np.meshgrid(np.arange(height), np.arange(width), indexing='ij')
-    indices = (np.repeat(np.ravel(x+dx), 3),
-               np.repeat(np.ravel(y+dy), 3),
-               np.tile([0,1,2], height*width))
+    indices = (np.repeat(np.ravel(x+dx), channels),
+               np.repeat(np.ravel(y+dy), channels),
+               np.tile(np.arange(channels), height*width))
 
     return map_coordinates(image, indices, order=1).reshape((height, width, channels))
 
@@ -95,10 +106,10 @@ class Iterator(object):
             augmented_masks.append(np.round(augmented[:,:,channels:]))
         return np.asarray(augmented_images), np.asarray(augmented_masks)
 
-def create_generators(data_dir, batch_size, validation_split=0.0,
-                      augment_training=True, augment_validation=False,
+def create_generators(data_dir, batch_size, validation_split=0.0, mask='both',
+                      augment_training=False, augment_validation=False,
                       augmentation_args={}):
-    images, masks = load_images(data_dir)
+    images, masks = load_images(data_dir, mask)
 
     # split out last %(validation_split) of images as validation set
     split_index = int((1-validation_split) * len(images))
@@ -109,7 +120,8 @@ def create_generators(data_dir, batch_size, validation_split=0.0,
             batch_size, augmentation_args)
     else:
         train_generator = ImageDataGenerator().flow(
-            images[split_index:], masks[split_index:], batch_size=batch_size)
+            images[:split_index], masks[:split_index],
+            batch_size=batch_size)
 
     train_steps_per_epoch = ceil(split_index / batch_size)
 
@@ -122,34 +134,6 @@ def create_generators(data_dir, batch_size, validation_split=0.0,
             val_generator = ImageDataGenerator().flow(
                 images[split_index:], masks[split_index:],
                 batch_size=batch_size)
-    else:
-        val_generator = None
-
-    val_steps_per_epoch = ceil((len(images) - split_index) / batch_size)
-
-    return (train_generator, train_steps_per_epoch,
-            val_generator, val_steps_per_epoch)
-
-
-def create_generators_keras(data_dir, batch_size, validation_split=0.0):
-    # Basic image / mask loader using keras; no image augmentation
-    images, masks = load_images(data_dir)
-
-    # split out last %(validation_split) of images as validation set
-    split_index = int((1-validation_split) * len(images))
-
-    train_generator = ImageDataGenerator().flow(
-        images[:split_index],
-        masks[:split_index],
-        batch_size=batch_size)
-
-    train_steps_per_epoch = ceil(split_index / batch_size)
-
-    if validation_split > 0.0:
-        val_generator = ImageDataGenerator().flow(
-            images[split_index:],
-            masks[split_index:],
-            batch_size=batch_size)
     else:
         val_generator = None
 
