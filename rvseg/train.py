@@ -2,6 +2,7 @@
 
 from __future__ import division, print_function
 
+import os
 import argparse
 import logging
 
@@ -33,7 +34,7 @@ def train():
 
     args = opts.parse_arguments()
 
-    logging.info("Loading dataset.")
+    logging.info("Loading dataset...")
     augmentation_args = {
         'rotation_range': args.rotation_range,
         'width_shift_range': args.width_shift_range,
@@ -44,16 +45,19 @@ def train():
     }
     train_generator, train_steps_per_epoch, \
         val_generator, val_steps_per_epoch = dataset.create_generators(
-            args.datadir, args.batch_size, args.validation_split,
-            args.augment_training, args.augment_validation,
-            augmentation_args)
+            args.datadir, args.batch_size,
+            validation_split=args.validation_split,
+            mask=args.classes,
+            augment_training=args.augment_training,
+            augment_validation=args.augment_validation,
+            augmentation_args=augmentation_args)
 
     # get image dimensions from first batch
     images, masks = next(train_generator)
     _, height, width, maps = images.shape
     _, _, _, classes = masks.shape
 
-    logging.info("Building model.")
+    logging.info("Building model...")
     m = model.u_net(height, width, maps,
                     features=args.features,
                     depth=args.depth,
@@ -97,12 +101,12 @@ def train():
     def dice(y_true, y_pred):
         batch_dice_coefs = loss.sorensen_dice(y_true, y_pred, axis=[1, 2])
         dice_coefs = K.mean(batch_dice_coefs, axis=0)
-        return dice_coefs[1]
+        return dice_coefs[1]    # HACK for 2-class case
 
     def jaccard(y_true, y_pred):
         batch_jaccard_coefs = loss.jaccard(y_true, y_pred, axis=[1, 2])
         jaccard_coefs = K.mean(batch_jaccard_coefs, axis=0)
-        return jaccard_coefs[1]
+        return jaccard_coefs[1] # HACK for 2-class case
 
     metrics = ['accuracy', dice, jaccard]
 
@@ -111,15 +115,18 @@ def train():
     # automatic saving of model during training
     if args.checkpoint:
         if args.loss == 'pixel':
-            filepath="weights-{epoch:02d}-{val_acc:.4f}.hdf5"
+            filepath = os.path.join(
+                args.outdir, "weights-{epoch:02d}-{val_acc:.4f}.hdf5")
             monitor = 'val_acc'
             mode = 'max'
         elif args.loss == 'dice':
-            filepath="weights-{epoch:02d}-{val_dice:.4f}.hdf5"
+            filepath = os.path.join(
+                args.outdir, "weights-{epoch:02d}-{val_dice:.4f}.hdf5")
             monitor='val_dice'
             mode = 'max'
         elif args.loss == 'jaccard':
-            filepath="weights-{epoch:02d}-{val_jaccard:.4f}.hdf5"
+            filepath = os.path.join(
+                args.outdir, "weights-{epoch:02d}-{val_jaccard:.4f}.hdf5")
             monitor='val_jaccard'
             mode = 'max'
         checkpoint = ModelCheckpoint(
@@ -139,7 +146,7 @@ def train():
                     callbacks=callbacks,
                     verbose=2)
 
-    m.save(args.outfile)
+    m.save(os.path.join(args.outdir, args.outfile))
 
 if __name__ == '__main__':
     train()

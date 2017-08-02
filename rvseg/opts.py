@@ -63,6 +63,7 @@ def update_from_configfile(args, default, config, section, key):
     if getattr(args, key) != default:
         return
 
+    # Config files always store values as strings -- get correct type
     if isinstance(default, bool):
         value = config.getboolean(section, key)
     elif isinstance(default, int):
@@ -72,16 +73,18 @@ def update_from_configfile(args, default, config, section, key):
     elif isinstance(default, str):
         value = config.get(section, key)
     elif isinstance(default, list):
-        # special case: loss-weights
+        # special case (HACK): loss-weights is list of floats
         string = config.get(section, key)
         value = [float(x) for x in string.split()]
     elif default is None:
-        # special case: optimizer parameters
+        # special case (HACK): not all optimizers have these parameters
         value = config.getfloat(section, key)
     setattr(args, key, value)
 
 def parse_arguments():
-    parser = argparse.ArgumentParser(description="Train U-Net to segment right ventricles from cardiac MRI images.")
+    parser = argparse.ArgumentParser(
+        description="Train U-Net to segment right ventricles from cardiac "
+        "MRI images.")
 
     for argname, kwargs in definitions:
         d = kwargs
@@ -90,8 +93,9 @@ def parse_arguments():
         parser.add_argument('--' + argname, **d)
 
     # allow user to input configuration file
-    parser.add_argument('configfile', nargs='?', type=str,
-                        help='Load options from config file (command line arguments take precedence).')
+    parser.add_argument(
+        'configfile', nargs='?', type=str, help="Load options from config "
+        "file (command line arguments take precedence).")
 
     args = parser.parse_args()
 

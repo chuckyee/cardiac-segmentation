@@ -31,7 +31,11 @@ class PatientData(object):
 
         # get patient index from contour listing file
         glob_search = os.path.join(directory, "P*list.txt")
-        self.contour_list_file = glob.glob(glob_search)[0]
+        files = glob.glob(glob_search)
+        if len(files) == 0:
+            raise Exception("Couldn't find contour listing file in {}. "
+                            "Wrong directory?".format(directory))
+        self.contour_list_file = files[0]
         match = re.search("P(..)list.txt", self.contour_list_file)
         self.index = int(match.group(1))
 
