@@ -64,19 +64,11 @@ def random_elastic_deformation(image, alpha, sigma, random_state=None):
     return map_coordinates(image, indices, order=1).reshape((height, width, channels))
 
 class Iterator(object):
-    def __init__(self, images, masks, batch_size):
+    def __init__(self, images, masks, batch_size, augmentation_args={}):
         self.images = images
         self.masks = masks
         self.i = 0
         self.batch_size = batch_size
-        augmentation_args = {
-            'rotation_range': 180,
-            'width_shift_range': 0.1,
-            'height_shift_range': 0.1,
-            'shear_range': 0.1,
-            'zoom_range': 0.05,
-            'fill_mode' : 'nearest',
-        }
         self.idg = ImageDataGenerator(**augmentation_args)
         self.alpha = 500
         self.sigma = 20
@@ -103,24 +95,33 @@ class Iterator(object):
             augmented_masks.append(np.round(augmented[:,:,channels:]))
         return np.asarray(augmented_images), np.asarray(augmented_masks)
 
-def create_generators(data_dir, batch_size, validation_split=0.0):
+def create_generators(data_dir, batch_size, validation_split=0.0,
+                      augment_training=True, augment_validation=False,
+                      augmentation_args={}):
     images, masks = load_images(data_dir)
 
     # split out last %(validation_split) of images as validation set
     split_index = int((1-validation_split) * len(images))
 
-    # Augment images and masks from training set
-    train_generator = Iterator(images[:split_index], masks[:split_index],
-                               batch_size)
+    if augment_training:
+        train_generator = Iterator(
+            images[:split_index], masks[:split_index],
+            batch_size, augmentation_args)
+    else:
+        train_generator = ImageDataGenerator().flow(
+            images[split_index:], masks[split_index:], batch_size=batch_size)
 
     train_steps_per_epoch = ceil(split_index / batch_size)
 
-    # Do not augment validation data
     if validation_split > 0.0:
-        val_generator = ImageDataGenerator().flow(
-            images[split_index:],
-            masks[split_index:],
-            batch_size=batch_size)
+        if augment_validation:
+            val_generator = Iterator(
+                images[split_index:], masks[split_index:],
+                batch_size, augmentation_args)
+        else:
+            val_generator = ImageDataGenerator().flow(
+                images[split_index:], masks[split_index:],
+                batch_size=batch_size)
     else:
         val_generator = None
 

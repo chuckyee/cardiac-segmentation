@@ -3,6 +3,7 @@
 from __future__ import division, print_function
 
 import argparse
+import logging
 
 from keras import losses, optimizers, utils
 from keras.optimizers import SGD, RMSprop, Adagrad, Adadelta, Adam, Adamax, Nadam
@@ -28,28 +29,44 @@ def select_optimizer(optimizer_name, optimizer_args):
     return optimizers[optimizer_name](**optimizer_args)
 
 def train():
+    logging.basicConfig(level=logging.INFO)
+
     args = opts.parse_arguments()
 
+    logging.info("Loading dataset.")
+    augmentation_args = {
+        'rotation_range': args.rotation_range,
+        'width_shift_range': args.width_shift_range,
+        'height_shift_range': args.height_shift_range,
+        'shear_range': args.shear_range,
+        'zoom_range': args.zoom_range,
+        'fill_mode' : args.fill_mode,
+    }
     train_generator, train_steps_per_epoch, \
         val_generator, val_steps_per_epoch = dataset.create_generators(
-            args.data_dir, args.batch_size, args.validation_split)
+            args.datadir, args.batch_size, args.validation_split,
+            args.augment_training, args.augment_validation,
+            augmentation_args)
 
     # get image dimensions from first batch
     images, masks = next(train_generator)
     _, height, width, maps = images.shape
     _, _, _, classes = masks.shape
 
+    logging.info("Building model.")
     m = model.u_net(height, width, maps,
                     features=args.features,
                     depth=args.depth,
                     classes=classes,
                     temperature=args.temperature,
                     padding=args.padding,
-                    batchnorm=args.batchnorm)
+                    batchnorm=args.batchnorm,
+                    dropout=args.dropout)
 
     m.summary()
 
     if args.load_weights:
+        logging.info("Loading saved weights from file: {}".format(args.load_weights))
         m.load_weights(args.load_weights)
 
     # instantiate optimizer, and only keep args that have been set
@@ -70,10 +87,10 @@ def train():
         lossfunc = 'categorical_crossentropy'
     elif args.loss == 'dice':
         def lossfunc(y_true, y_pred):
-            return loss.sorensen_dice_loss(y_true, y_pred, [0.1, 0.9])
+            return loss.sorensen_dice_loss(y_true, y_pred, args.loss_weights)
     elif args.loss == 'jaccard':
         def lossfunc(y_true, y_pred):
-            return loss.jaccard_loss(y_true, y_pred, [0.1, 0.9])
+            return loss.jaccard_loss(y_true, y_pred, args.loss_weights)
     else:
         raise Exception("Unknown loss ({})".format(args.loss))
 
@@ -113,6 +130,7 @@ def train():
         callbacks = []
 
     # train
+    logging.info("Begin training.")
     m.fit_generator(train_generator,
                     epochs=args.epochs,
                     steps_per_epoch=train_steps_per_epoch,
