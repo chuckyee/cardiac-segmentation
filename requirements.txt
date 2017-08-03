@@ -1,5 +1,6 @@
 backports.weakref==1.0rc1
 bleach==1.5.0
+h5py==2.7.0
 html5lib==0.9999999
 Keras==2.0.6
 Markdown==2.6.8
@@ -9,7 +10,6 @@ Pillow==4.2.1
 protobuf==3.3.0
 pydicom==0.9.9
 PyYAML==3.12
--e git+https://github.com/chuckyee/cardiac-segmentation.git@3549873c9f90bc0d2cadc67967340cb2823f7420#egg=rvseg
 scipy==0.19.1
 six==1.10.0
 tensorflow==1.2.1
