@@ -86,7 +86,9 @@ class Iterator(object):
                  zoom_range=0.01,
                  fill_mode='nearest',
                  samplewise_center=False,
-                 samplewise_std_normalization=False):
+                 samplewise_std_normalization=False,
+                 alpha=500,
+                 sigma=20):
         self.images = images
         self.masks = masks
         self.batch_size = batch_size
@@ -101,9 +103,9 @@ class Iterator(object):
         self.idg = ImageDataGenerator(**augment_options)
         self.samplewise_center = samplewise_center
         self.samplewise_std_normalization = samplewise_std_normalization
-        self.alpha = kwargs['alpha']
-        self.sigma = kwargs['sigma']
-        self.fill_mode = kwargs['fill_mode']
+        self.alpha = alpha
+        self.sigma = sigma
+        self.fill_mode = fill_mode
         self.i = 0
 
     def __next__(self):
