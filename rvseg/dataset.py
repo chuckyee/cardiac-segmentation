@@ -48,7 +48,8 @@ def load_images(data_dir, mask='both'):
 
     return images, masks
 
-def random_elastic_deformation(image, alpha, sigma, random_state=None):
+def random_elastic_deformation(image, alpha, sigma, mode='nearest',
+                               random_state=None):
     """Elastic deformation of images as described in [Simard2003]_.
     .. [Simard2003] Simard, Steinkraus and Platt, "Best Practices for
        Convolutional Neural Networks applied to Visual Document Analysis", in
@@ -71,18 +72,39 @@ def random_elastic_deformation(image, alpha, sigma, random_state=None):
     indices = (np.repeat(np.ravel(x+dx), channels),
                np.repeat(np.ravel(y+dy), channels),
                np.tile(np.arange(channels), height*width))
+    
+    values = map_coordinates(image, indices, order=1, mode=mode)
 
-    return map_coordinates(image, indices, order=1).reshape((height, width, channels))
+    return values.reshape((height, width, channels))
 
 class Iterator(object):
-    def __init__(self, images, masks, batch_size, augmentation_args={}):
+    def __init__(self, images, masks, batch_size,
+                 rotation_range=180,
+                 width_shift_range=0.1,
+                 height_shift_range=0.1,
+                 shear_range=0.1,
+                 zoom_range=0.01,
+                 fill_mode='nearest',
+                 samplewise_center=False,
+                 samplewise_std_normalization=False):
         self.images = images
         self.masks = masks
-        self.i = 0
         self.batch_size = batch_size
-        self.idg = ImageDataGenerator(**augmentation_args)
-        self.alpha = 500
-        self.sigma = 20
+        augment_options = {
+            'rotation_range': rotation_range,
+            'width_shift_range': width_shift_range,
+            'height_shift_range': height_shift_range,
+            'shear_range': shear_range,
+            'zoom_range': zoom_range,
+            'fill_mode': fill_mode,
+        }
+        self.idg = ImageDataGenerator(**augment_options)
+        self.samplewise_center = samplewise_center
+        self.samplewise_std_normalization = samplewise_std_normalization
+        self.alpha = kwargs['alpha']
+        self.sigma = kwargs['sigma']
+        self.fill_mode = kwargs['fill_mode']
+        self.i = 0
 
     def __next__(self):
         return self.next()
@@ -100,9 +122,15 @@ class Iterator(object):
             _, _, channels = image.shape
             stacked = np.concatenate((image, mask), axis=2)
             augmented = self.idg.random_transform(stacked)
-            augmented = random_elastic_deformation(
-                augmented, self.alpha, self.sigma)
-            augmented_images.append(augmented[:,:,:channels])
+            if self.alpha != 0 and self.sigma != 0:
+                augmented = random_elastic_deformation(
+                    augmented, self.alpha, self.sigma, self.fill_mode)
+            augmented_image = augmented[:,:,:channels]
+            if self.samplewise_center:
+                augmented_image -= np.mean(augmented_image)
+            if self.samplewise_std_normalization:
+                augmented_image /= np.std(augmented_image) + 1e-7
+            augmented_images.append(augmented_image)
             augmented_masks.append(np.round(augmented[:,:,channels:]))
         return np.asarray(augmented_images), np.asarray(augmented_masks)
 
@@ -114,12 +142,18 @@ def create_generators(data_dir, batch_size, validation_split=0.0, mask='both',
     # split out last %(validation_split) of images as validation set
     split_index = int((1-validation_split) * len(images))
 
+    normalize_args = {}
+    for k in ['samplewise_center', 'samplewise_std_normalization']:
+        if k in augmentation_args:
+            normalize_args[k] = augmentation_args[k]
+    normalize_args = {}
+
     if augment_training:
         train_generator = Iterator(
             images[:split_index], masks[:split_index],
-            batch_size, augmentation_args)
+            batch_size, **augmentation_args)
     else:
-        train_generator = ImageDataGenerator().flow(
+        train_generator = ImageDataGenerator(**normalize_args).flow(
             images[:split_index], masks[:split_index],
             batch_size=batch_size)
 
@@ -129,9 +163,9 @@ def create_generators(data_dir, batch_size, validation_split=0.0, mask='both',
         if augment_validation:
             val_generator = Iterator(
                 images[split_index:], masks[split_index:],
-                batch_size, augmentation_args)
+                batch_size, **augmentation_args)
         else:
-            val_generator = ImageDataGenerator().flow(
+            val_generator = ImageDataGenerator(**normalize_args).flow(
                 images[split_index:], masks[split_index:],
                 batch_size=batch_size)
     else:
