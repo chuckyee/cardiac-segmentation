@@ -51,10 +51,8 @@ definitions = [
     ('fill-mode',          (str,   'nearest', "Points outside boundaries are filled according to mode: constant, nearest, reflect, or wrap")),
     ('alpha',              (float, 500,    "Random elastic distortion: magnitude of distortion")),
     ('sigma',              (float, 20,     "Random elastic distortion: length scale")),
-    ('samplewise_center', {'default': False, 'action': 'store_true',
-                           'help': "Set each image mean to 0."}),
-    ('samplewise_std_normalization', {'default': False, 'action': 'store_true',
-                                      'help': "Divide each image by its standard deviation."}),
+    ('normalize_image', {'default': False, 'action': 'store_true',
+                           'help': "Subtract mean and divide by std dev from each image."}),
 ]
 
 def update_from_configfile(args, default, config, section, key):

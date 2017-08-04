@@ -85,8 +85,7 @@ class Iterator(object):
                  shear_range=0.1,
                  zoom_range=0.01,
                  fill_mode='nearest',
-                 samplewise_center=False,
-                 samplewise_std_normalization=False,
+                 normalize_image=False,
                  alpha=500,
                  sigma=20):
         self.images = images
@@ -101,8 +100,7 @@ class Iterator(object):
             'fill_mode': fill_mode,
         }
         self.idg = ImageDataGenerator(**augment_options)
-        self.samplewise_center = samplewise_center
-        self.samplewise_std_normalization = samplewise_std_normalization
+        self.normalize_image = normalize_image
         self.alpha = alpha
         self.sigma = sigma
         self.fill_mode = fill_mode
@@ -128,13 +126,17 @@ class Iterator(object):
                 augmented = random_elastic_deformation(
                     augmented, self.alpha, self.sigma, self.fill_mode)
             augmented_image = augmented[:,:,:channels]
-            if self.samplewise_center:
-                augmented_image -= np.mean(augmented_image)
-            if self.samplewise_std_normalization:
-                augmented_image /= np.std(augmented_image) + 1e-7
+            if self.normalize_image:
+                normalize_image(augmented_image)
             augmented_images.append(augmented_image)
             augmented_masks.append(np.round(augmented[:,:,channels:]))
         return np.asarray(augmented_images), np.asarray(augmented_masks)
+
+def normalize_image(x, epsilon=1e-7):
+    # shape of image x should be (height, width, channels)
+    x -= np.mean(x, axis=(0, 1), keepdims=True)
+    x /= np.std(x, axis=(0, 1), keepdims=True) + epsilon
+    return x
 
 def create_generators(data_dir, batch_size, validation_split=0.0, mask='both',
                       augment_training=False, augment_validation=False,
@@ -144,20 +146,19 @@ def create_generators(data_dir, batch_size, validation_split=0.0, mask='both',
     # split out last %(validation_split) of images as validation set
     split_index = int((1-validation_split) * len(images))
 
-    normalize_args = {}
-    for k in ['samplewise_center', 'samplewise_std_normalization']:
-        if k in augmentation_args:
-            normalize_args[k] = augmentation_args[k]
-    normalize_args = {}
+    # maybe normalize image
+    pfunc = None
+    if augmentation_args.get('normalize_image'):
+        pfunc = normalize_image
 
     if augment_training:
         train_generator = Iterator(
             images[:split_index], masks[:split_index],
             batch_size, **augmentation_args)
     else:
-        train_generator = ImageDataGenerator(**normalize_args).flow(
-            images[:split_index], masks[:split_index],
-            batch_size=batch_size)
+        idg = ImageDataGenerator(preprocessing_function=pfunc)
+        train_generator = idg.flow(images[:split_index], masks[:split_index],
+                                   batch_size=batch_size)
 
     train_steps_per_epoch = ceil(split_index / batch_size)
 
@@ -167,9 +168,10 @@ def create_generators(data_dir, batch_size, validation_split=0.0, mask='both',
                 images[split_index:], masks[split_index:],
                 batch_size, **augmentation_args)
         else:
-            val_generator = ImageDataGenerator(**normalize_args).flow(
-                images[split_index:], masks[split_index:],
-                batch_size=batch_size)
+            idg = ImageDataGenerator(preprocessing_function=pfunc)
+            val_generator = idg.flow(images[split_index:],
+                                     masks[split_index:],
+                                     batch_size=batch_size)
     else:
         val_generator = None
 

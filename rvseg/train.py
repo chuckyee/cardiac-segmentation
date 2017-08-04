@@ -44,8 +44,7 @@ def train():
         'fill_mode' : args.fill_mode,
         'alpha': args.alpha,
         'sigma': args.sigma,
-        'samplewise_center': args.samplewise_center,
-        'samplewise_std_normalization': args.samplewise_std_normalization,
+        'normalize_image': args.normalize_image,
     }
     train_generator, train_steps_per_epoch, \
         val_generator, val_steps_per_epoch = dataset.create_generators(
