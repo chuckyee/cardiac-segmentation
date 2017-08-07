@@ -61,7 +61,7 @@ definitions = [
 ]
 
 noninitialized = {
-    'learning-rate': 'getfloat',
+    'learning_rate': 'getfloat',
     'momentum': 'getfloat',
     'decay': 'getfloat',
     'seed': 'getint',
