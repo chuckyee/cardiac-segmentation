@@ -60,6 +60,13 @@ definitions = [
                    'help': "Subtract mean and divide by std dev from each image."}),
 ]
 
+noninitialized = {
+    'learning-rate': 'getfloat',
+    'momentum': 'getfloat',
+    'decay': 'getfloat',
+    'seed': 'getint',
+}
+
 def update_from_configfile(args, default, config, section, key):
     # Point of this function is to update the args Namespace.
     value = config.get(section, key)
@@ -84,8 +91,9 @@ def update_from_configfile(args, default, config, section, key):
         string = config.get(section, key)
         value = [float(x) for x in string.split()]
     elif default is None:
-        # special case (HACK): not all optimizers have these parameters
-        value = config.getfloat(section, key)
+        # values which aren't initialized
+        getter = getattr(config, noninitialized[key])
+        value = getter(section, key)
     setattr(args, key, value)
 
 def parse_arguments():
