@@ -44,13 +44,15 @@ def train():
         'fill_mode' : args.fill_mode,
         'alpha': args.alpha,
         'sigma': args.sigma,
-        'normalize_image': args.normalize_image,
     }
     train_generator, train_steps_per_epoch, \
         val_generator, val_steps_per_epoch = dataset.create_generators(
             args.datadir, args.batch_size,
             validation_split=args.validation_split,
             mask=args.classes,
+            shuffle=args.shuffle,
+            seed=args.seed,
+            normalize_images=args.normalize,
             augment_training=args.augment_training,
             augment_validation=args.augment_validation,
             augmentation_args=augmentation_args)

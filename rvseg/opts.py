@@ -29,6 +29,9 @@ definitions = [
     ('learning-rate',    (float, None,   "Optimizer learning rate.")),
     ('momentum',         (float, None,   "Momentum for SGD optimizer.")),
     ('decay',            (float, None,   "Learning rate decay (not applicable for nadam).")),
+    ('shuffle',          {'default': False, 'action': 'store_true',
+                          'help': "Shuffle the images before splitting into train vs. val."}),
+    ('seed',             (int,   None,   "Seed for numpy RandomState")),
 
     # files
     ('datadir',          (str,   '.',    "Directory containing patientXX/ directories.")),
@@ -51,8 +54,8 @@ definitions = [
     ('fill-mode',          (str,   'nearest', "Points outside boundaries are filled according to mode: constant, nearest, reflect, or wrap")),
     ('alpha',              (float, 500,    "Random elastic distortion: magnitude of distortion")),
     ('sigma',              (float, 20,     "Random elastic distortion: length scale")),
-    ('normalize_image', {'default': False, 'action': 'store_true',
-                           'help': "Subtract mean and divide by std dev from each image."}),
+    ('normalize', {'default': False, 'action': 'store_true',
+                   'help': "Subtract mean and divide by std dev from each image."}),
 ]
 
 def update_from_configfile(args, default, config, section, key):

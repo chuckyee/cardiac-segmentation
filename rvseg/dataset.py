@@ -18,7 +18,7 @@ def load_images(data_dir, mask='both'):
     assert mask in ['inner', 'outer', 'both']
 
     glob_search = os.path.join(data_dir, "patient*")
-    patient_dirs = glob.glob(glob_search)
+    patient_dirs = sorted(glob.glob(glob_search))
     if len(patient_dirs) == 0:
         raise Exception("No patient directors found in {}".format(data_dir))
 
@@ -35,11 +35,12 @@ def load_images(data_dir, mask='both'):
     # reshape to account for channel dimension
     images = np.asarray(images)[:,:,:,None]
     if mask == 'inner':
-        masks = np.asarray(inner_masks) // 255
+        masks = np.asarray(inner_masks)
     elif mask == 'outer':
-        masks = np.asarray(outer_masks) // 255
+        masks = np.asarray(outer_masks)
     elif mask == 'both':
-        masks = np.asarray(inner_masks) // 255 + np.asarray(outer_masks) // 255
+        # mask = 2 for endocardium, 1 for cardiac wall, 0 elsewhere
+        masks = np.asarray(inner_masks) + np.asarray(outer_masks)
 
     # one-hot encode masks
     dims = masks.shape
@@ -85,7 +86,6 @@ class Iterator(object):
                  shear_range=0.1,
                  zoom_range=0.01,
                  fill_mode='nearest',
-                 normalize_image=False,
                  alpha=500,
                  sigma=20):
         self.images = images
@@ -100,7 +100,6 @@ class Iterator(object):
             'fill_mode': fill_mode,
         }
         self.idg = ImageDataGenerator(**augment_options)
-        self.normalize_image = normalize_image
         self.alpha = alpha
         self.sigma = sigma
         self.fill_mode = fill_mode
@@ -126,19 +125,16 @@ class Iterator(object):
                 augmented = random_elastic_deformation(
                     augmented, self.alpha, self.sigma, self.fill_mode)
             augmented_image = augmented[:,:,:channels]
-            if self.normalize_image:
-                normalize_image(augmented_image)
             augmented_images.append(augmented_image)
             augmented_masks.append(np.round(augmented[:,:,channels:]))
         return np.asarray(augmented_images), np.asarray(augmented_masks)
 
-def normalize_image(x, epsilon=1e-7):
-    # shape of image x should be (height, width, channels)
-    x -= np.mean(x, axis=(0, 1), keepdims=True)
-    x /= np.std(x, axis=(0, 1), keepdims=True) + epsilon
-    return x
+def normalize(x, epsilon=1e-7, axis=(1,2)):
+    x -= np.mean(x, axis=axis, keepdims=True)
+    x /= np.std(x, axis=axis, keepdims=True) + epsilon
 
 def create_generators(data_dir, batch_size, validation_split=0.0, mask='both',
+                      shuffle=False, seed=None, normalize_images=True,
                       augment_training=False, augment_validation=False,
                       augmentation_args={}):
     images, masks = load_images(data_dir, mask)
@@ -147,16 +143,21 @@ def create_generators(data_dir, batch_size, validation_split=0.0, mask='both',
     split_index = int((1-validation_split) * len(images))
 
     # maybe normalize image
-    pfunc = None
-    if augmentation_args.get('normalize_image'):
-        pfunc = normalize_image
+    if normalize_images:
+        normalize(images, axis=(1,2))
+
+    if seed is not None:
+        np.random.seed(seed)
+
+    if shuffle:
+        np.random.shuffle(images)
 
     if augment_training:
         train_generator = Iterator(
             images[:split_index], masks[:split_index],
             batch_size, **augmentation_args)
     else:
-        idg = ImageDataGenerator(preprocessing_function=pfunc)
+        idg = ImageDataGenerator()
         train_generator = idg.flow(images[:split_index], masks[:split_index],
                                    batch_size=batch_size)
 
@@ -168,7 +169,7 @@ def create_generators(data_dir, batch_size, validation_split=0.0, mask='both',
                 images[split_index:], masks[split_index:],
                 batch_size, **augmentation_args)
         else:
-            idg = ImageDataGenerator(preprocessing_function=pfunc)
+            idg = ImageDataGenerator()
             val_generator = idg.flow(images[split_index:],
                                      masks[split_index:],
                                      batch_size=batch_size)
