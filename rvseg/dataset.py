@@ -15,6 +15,17 @@ from . import patient
 
 
 def load_images(data_dir, mask='both'):
+    """Load all patient images and contours from TrainingSet, Test1Set or
+    Test2Set directory. The directories and images are read in sorted order.
+
+    Arguments:
+      data_dir - path to data directory (TrainingSet, Test1Set or Test2Set)
+
+    Output:
+      tuples of (images, masks), both of which are 4-d tensors of shape
+      (batchsize, height, width, channels). Images is uint16 and masks are
+      uint8 with values 0 or 1.
+    """
     assert mask in ['inner', 'outer', 'both']
 
     glob_search = os.path.join(data_dir, "patient*")
@@ -109,24 +120,36 @@ class Iterator(object):
         return self.next()
 
     def next(self):
+        # compute how many images to output in this batch
         start = self.i
         end = min(start + self.batch_size, len(self.images))
         self.i += self.batch_size
         if self.i >= len(self.images):
             self.i = 0
+
         augmented_images = []
         augmented_masks = []
         images_masks = zip(self.images[start:end], self.masks[start:end])
         for image, mask in images_masks:
             _, _, channels = image.shape
+
+            # stack image + mask together to simultaneously augment
             stacked = np.concatenate((image, mask), axis=2)
+
+            # apply simple affine transforms first using Keras
             augmented = self.idg.random_transform(stacked)
+
+            # maybe apply elastic deformation
             if self.alpha != 0 and self.sigma != 0:
                 augmented = random_elastic_deformation(
                     augmented, self.alpha, self.sigma, self.fill_mode)
+
+            # split image and mask back apart
             augmented_image = augmented[:,:,:channels]
             augmented_images.append(augmented_image)
-            augmented_masks.append(np.round(augmented[:,:,channels:]))
+            augmented_mask = np.round(augmented[:,:,channels:])
+            augmented_masks.append(augmented_mask)
+
         return np.asarray(augmented_images), np.asarray(augmented_masks)
 
 def normalize(x, epsilon=1e-7, axis=(1,2)):
