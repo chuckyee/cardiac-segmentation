@@ -77,7 +77,9 @@ class TestDataset(unittest.TestCase):
         self.assertEqual(val_generator, None)
 
 
-    def test_shuffle(self):
+    def test_shuffle_train_val(self):
+        # test shuffling of entire dataset prior to train-val split
+        # (does not test shuffling within each epoch)
         data_dir = "../test-assets/"
         batch_size = 2
         validation_split = 0.5
@@ -88,10 +90,12 @@ class TestDataset(unittest.TestCase):
         # there should be 2 images in the validation set, and we'll check if
         # they always appear in the same order with a fixed seed
         image_list = []
+        mask_list = []
         for i in range(10):
             _, _, val_generator, _ = dataset.create_generators(
                 data_dir, batch_size, validation_split=validation_split,
-                mask=mask, shuffle=True, seed=seed, normalize_images=True)
+                mask=mask, shuffle_train_val=True, shuffle=False, seed=seed,
+                normalize_images=True)
 
             images, masks = next(val_generator)
             self.assertEqual(images.shape, (2, 216, 256, 1))
@@ -103,23 +107,30 @@ class TestDataset(unittest.TestCase):
                 self.assertAlmostEqual(np.std(image), 1, places=5)
 
             image_list.append(images[0])
+            mask_list.append(masks[0])
 
-        # first image in each case should be the same
+        # first image/mask in each case should be the same
         image0 = image_list[0]
         for image in image_list[1:]:
             np.testing.assert_array_equal(image0, image)
+        mask0 = mask_list[0]
+        for mask in mask_list[1:]:
+            np.testing.assert_array_equal(mask0, mask)
 
         # now test that things get shuffled if we don't specify a seed
+        mask = "both"
         _, _, val_generator, _ = dataset.create_generators(
             data_dir, batch_size, validation_split=validation_split,
-            mask=mask, shuffle=True, seed=None, normalize_images=True)
+            mask=mask, shuffle_train_val=True, shuffle=False, seed=None,
+            normalize_images=True)
 
         images, masks = next(val_generator)
         image0 = images[0]
         while 1:
             _, _, val_generator, _ = dataset.create_generators(
                 data_dir, batch_size, validation_split=validation_split,
-                mask=mask, shuffle=True, seed=None, normalize_images=True)
+                mask=mask, shuffle_train_val=True, shuffle=True, seed=None,
+                normalize_images=True)
             images, masks = next(val_generator)            
             try:
                 np.testing.assert_array_equal(image0, images[0])
