@@ -50,6 +50,7 @@ def train():
             args.datadir, args.batch_size,
             validation_split=args.validation_split,
             mask=args.classes,
+            shuffle_train_val=args.shuffle_train_val,
             shuffle=args.shuffle,
             seed=args.seed,
             normalize_images=args.normalize,

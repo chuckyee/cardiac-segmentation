@@ -29,8 +29,10 @@ definitions = [
     ('learning-rate',    (float, None,   "Optimizer learning rate.")),
     ('momentum',         (float, None,   "Momentum for SGD optimizer.")),
     ('decay',            (float, None,   "Learning rate decay (not applicable for nadam).")),
+    ('shuffle_train_val', {'default': False, 'action': 'store_true',
+                           'help': "Shuffle images before splitting into train vs. val."}),
     ('shuffle',          {'default': False, 'action': 'store_true',
-                          'help': "Shuffle the images before splitting into train vs. val."}),
+                          'help': "Shuffle images before each training epoch."}),
     ('seed',             (int,   None,   "Seed for numpy RandomState")),
 
     # files

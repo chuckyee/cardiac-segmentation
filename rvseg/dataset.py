@@ -91,6 +91,7 @@ def random_elastic_deformation(image, alpha, sigma, mode='nearest',
 
 class Iterator(object):
     def __init__(self, images, masks, batch_size,
+                 shuffle=True,
                  rotation_range=180,
                  width_shift_range=0.1,
                  height_shift_range=0.1,
@@ -102,6 +103,7 @@ class Iterator(object):
         self.images = images
         self.masks = masks
         self.batch_size = batch_size
+        self.shuffle = shuffle
         augment_options = {
             'rotation_range': rotation_range,
             'width_shift_range': width_shift_range,
@@ -115,6 +117,9 @@ class Iterator(object):
         self.sigma = sigma
         self.fill_mode = fill_mode
         self.i = 0
+        self.index = np.arange(len(images))
+        if shuffle:
+            np.random.shuffle(self.index)
 
     def __next__(self):
         return self.next()
@@ -123,14 +128,13 @@ class Iterator(object):
         # compute how many images to output in this batch
         start = self.i
         end = min(start + self.batch_size, len(self.images))
-        self.i += self.batch_size
-        if self.i >= len(self.images):
-            self.i = 0
 
         augmented_images = []
         augmented_masks = []
-        images_masks = zip(self.images[start:end], self.masks[start:end])
-        for image, mask in images_masks:
+        for n in self.index[start:end]:
+            image = self.images[n]
+            mask = self.masks[n]
+
             _, _, channels = image.shape
 
             # stack image + mask together to simultaneously augment
@@ -150,6 +154,12 @@ class Iterator(object):
             augmented_mask = np.round(augmented[:,:,channels:])
             augmented_masks.append(augmented_mask)
 
+        self.i += self.batch_size
+        if self.i >= len(self.images):
+            self.i = 0
+            if self.shuffle:
+                np.random.shuffle(self.index)
+
         return np.asarray(augmented_images), np.asarray(augmented_masks)
 
 def normalize(x, epsilon=1e-7, axis=(1,2)):
@@ -157,17 +167,14 @@ def normalize(x, epsilon=1e-7, axis=(1,2)):
     x /= np.std(x, axis=axis, keepdims=True) + epsilon
 
 def create_generators(data_dir, batch_size, validation_split=0.0, mask='both',
-                      shuffle=False, seed=None, normalize_images=True,
-                      augment_training=False, augment_validation=False,
-                      augmentation_args={}):
+                      shuffle_train_val=True, shuffle=True, seed=None,
+                      normalize_images=True, augment_training=False,
+                      augment_validation=False, augmentation_args={}):
     images, masks = load_images(data_dir, mask)
 
     # before: type(masks) = uint8 and type(images) = uint16
     # convert images to double-precision
     images = images.astype('float64')
-
-    # split out last %(validation_split) of images as validation set
-    split_index = int((1-validation_split) * len(images))
 
     # maybe normalize image
     if normalize_images:
@@ -176,17 +183,24 @@ def create_generators(data_dir, batch_size, validation_split=0.0, mask='both',
     if seed is not None:
         np.random.seed(seed)
 
-    if shuffle:
+    if shuffle_train_val:
+        # shuffle images and masks in parallel
+        rng_state = np.random.get_state()
         np.random.shuffle(images)
+        np.random.set_state(rng_state)
+        np.random.shuffle(masks)
+
+    # split out last %(validation_split) of images as validation set
+    split_index = int((1-validation_split) * len(images))
 
     if augment_training:
         train_generator = Iterator(
             images[:split_index], masks[:split_index],
-            batch_size, **augmentation_args)
+            batch_size, shuffle=shuffle, **augmentation_args)
     else:
         idg = ImageDataGenerator()
         train_generator = idg.flow(images[:split_index], masks[:split_index],
-                                   batch_size=batch_size)
+                                   batch_size=batch_size, shuffle=shuffle)
 
     train_steps_per_epoch = ceil(split_index / batch_size)
 
@@ -194,12 +208,11 @@ def create_generators(data_dir, batch_size, validation_split=0.0, mask='both',
         if augment_validation:
             val_generator = Iterator(
                 images[split_index:], masks[split_index:],
-                batch_size, **augmentation_args)
+                batch_size, shuffle=shuffle, **augmentation_args)
         else:
             idg = ImageDataGenerator()
-            val_generator = idg.flow(images[split_index:],
-                                     masks[split_index:],
-                                     batch_size=batch_size)
+            val_generator = idg.flow(images[split_index:], masks[split_index:],
+                                     batch_size=batch_size, shuffle=shuffle)
     else:
         val_generator = None
 
