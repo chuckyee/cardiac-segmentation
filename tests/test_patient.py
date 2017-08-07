@@ -35,12 +35,18 @@ class TestPatientData(unittest.TestCase):
         plan = dicom.read_file(self.directory + "P09dicom/P09-0000.dcm")
         np.testing.assert_array_equal(p.all_dicoms[0].pixel_array,
                                       plan.pixel_array)
+        self.assertEqual(p.images[0].dtype, 'uint16')
 
         # check endo- and epicardium masks
         endo_mask = np.loadtxt(self.directory + "endocardium-p09-0020.mask")
         np.testing.assert_array_equal(p.endocardium_masks[0], endo_mask)
+        self.assertEqual(p.endocardium_masks[0].dtype, 'uint8')
+        self.assertSetEqual(set(p.endocardium_masks[0].flatten()), set([0, 1]))
+
         epi_mask = np.loadtxt(self.directory + "epicardium-p09-0020.mask")
         np.testing.assert_array_equal(p.epicardium_masks[0], epi_mask)
+        self.assertEqual(p.epicardium_masks[0].dtype, 'uint8')
+        self.assertSetEqual(set(p.epicardium_masks[0].flatten()), set([0, 1]))
 
     @unittest.skip("Skipping video write: OpenCV is a pain to install in test env.")
     def test_write_video(self):

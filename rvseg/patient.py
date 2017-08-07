@@ -67,9 +67,7 @@ class PatientData(object):
         self.all_dicoms = []
         for dicom_file in dicom_files:
             plan = dicom.read_file(dicom_file)
-            image = plan.pixel_array.astype(float)
-            image *= 255/image.max()
-            image = maybe_rotate(np.asarray(image, dtype='uint8'))
+            image = maybe_rotate(plan.pixel_array)
             self.all_images.append(image)
             self.all_dicoms.append(plan)
         self.image_height, self.image_width = image.shape
@@ -99,7 +97,13 @@ class PatientData(object):
         inner_files = [path.replace("\\", "/") for path in files[0::2]]
         outer_files = [path.replace("\\", "/") for path in files[1::2]]
 
+        # get list of frames which have contours
         self.labeled = []
+        for inner_file in inner_files:
+            match = re.search("P..-(....)-.contour", inner_file)
+            frame_number = int(match.group(1))
+            self.labeled.append(frame_number)
+
         self.endocardium_contours = []
         self.epicardium_contours = []
         self.endocardium_masks = []
@@ -110,21 +114,17 @@ class PatientData(object):
             outer_x, outer_y = self.load_contour(outer_file)
             self.epicardium_contours.append((outer_x, outer_y))
 
-            # get frame number
-            match = re.search("P..-(....)-.contour", inner_file)
-            frame_number = int(match.group(1))
-            self.labeled.append(frame_number)
-
-            inner_mask = self.contour_to_mask(inner_x, inner_y)
+            inner_mask = self.contour_to_mask(inner_x, inner_y, norm=1)
             self.endocardium_masks.append(inner_mask)
-            outer_mask = self.contour_to_mask(outer_x, outer_y)
+            outer_mask = self.contour_to_mask(outer_x, outer_y, norm=1)
             self.epicardium_masks.append(outer_mask)
             
-    def write_video(self, outfile, FPS = 24):
+    def write_video(self, outfile, FPS=24):
         import cv2
         image_dims = (self.image_width, self.image_height)
         video = cv2.VideoWriter(outfile, -1, FPS, image_dims)
         for image in self.all_images:
-            video.write(cv2.cvtColor(image, cv2.COLOR_GRAY2BGR))
+            grayscale = np.asarray(image * (255 / image.max()), dtype='uint8')
+            video.write(cv2.cvtColor(grayscale, cv2.COLOR_GRAY2BGR))
         video.release()
 
