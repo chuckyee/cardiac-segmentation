@@ -139,6 +139,10 @@ def create_generators(data_dir, batch_size, validation_split=0.0, mask='both',
                       augmentation_args={}):
     images, masks = load_images(data_dir, mask)
 
+    # before: type(masks) = uint8 and type(images) = uint16
+    # convert images to double-precision
+    images = images.astype('float64')
+
     # split out last %(validation_split) of images as validation set
     split_index = int((1-validation_split) * len(images))
 
