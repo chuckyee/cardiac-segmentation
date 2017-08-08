@@ -64,14 +64,7 @@ def train():
     _, _, _, classes = masks.shape
 
     logging.info("Building model...")
-    m = model.u_net(height, width, maps,
-                    features=args.features,
-                    depth=args.depth,
-                    classes=classes,
-                    temperature=args.temperature,
-                    padding=args.padding,
-                    batchnorm=args.batchnorm,
-                    dropout=args.dropout)
+    m = dilatenet.DilatedUNet(height, width, maps, classes=classes)
 
     m.summary()
 
