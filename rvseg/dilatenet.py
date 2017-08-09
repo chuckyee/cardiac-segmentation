@@ -23,21 +23,27 @@ class DilatedUNet(object):
 
         x = Conv2D(32, kernel_size=(3,3), dilation_rate=1, padding='same', activation='relu')(x)
         x = Conv2D(32, kernel_size=(3,3), dilation_rate=2, padding='same', activation='relu')(x)
-        x = MaxPooling2D(pool_size=(2,2))(x)
         x1 = x
+        x = MaxPooling2D(pool_size=(2,2))(x)
 
         x = Conv2D(64, kernel_size=(3,3), dilation_rate=1, padding='same', activation='relu')(x)
         x = Conv2D(64, kernel_size=(3,3), dilation_rate=2, padding='same', activation='relu')(x)
-        x = MaxPooling2D(pool_size=(2,2))(x)
         x2 = x
+        x = MaxPooling2D(pool_size=(2,2))(x)
 
         x = Conv2D(128, kernel_size=(3,3), dilation_rate=1, padding='same', activation='relu')(x)
         x = Conv2D(128, kernel_size=(3,3), dilation_rate=2, padding='same', activation='relu')(x)
-        x = MaxPooling2D(pool_size=(2,2))(x)
         x3 = x
+        x = MaxPooling2D(pool_size=(2,2))(x)
 
         x = Conv2D(256, kernel_size=(3,3), dilation_rate=1, padding='same', activation='relu')(x)
         x = Conv2D(256, kernel_size=(3,3), dilation_rate=2, padding='same', activation='relu')(x)
+        # global context should exist at this level, in that each input pixel is mixed
+        # However, high level features aren't globally incorporated into context
+        x = Conv2D(256, kernel_size=(3,3), dilation_rate=4, padding='same', activation='relu')(x)
+        # Adding additional dilated convolutional layers should globally incorporate context
+        x = Conv2D(256, kernel_size=(3,3), dilation_rate=8, padding='same', activation='relu')(x)
+        x = Conv2D(256, kernel_size=(3,3), dilation_rate=16, padding='same', activation='relu')(x)
 
         x = Conv2DTranspose(128, kernel_size=(2,2), strides=(2,2))(x)
         x = Concatenate()([x, x3])
