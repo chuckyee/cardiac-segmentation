@@ -70,7 +70,10 @@ def train():
         "dilated-densenet": models.DilatedDenseNet,
     }
     Model = string_to_model[args.model]
-    m = Model(height, width, channels, classes)
+    m = Model(height=height, width=width, channels=maps, classes=classes,
+              features=args.features, depth=args.depth, padding=args.padding,
+              temperature=args.temperature, batchnorm=args.batchnorm,
+              dropout=args.dropout)
 
     m.summary()
 
