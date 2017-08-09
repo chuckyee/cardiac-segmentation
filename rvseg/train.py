@@ -11,7 +11,7 @@ from keras.optimizers import SGD, RMSprop, Adagrad, Adadelta, Adam, Adamax, Nada
 from keras.callbacks import ModelCheckpoint
 from keras import backend as K
 
-from rvseg import dataset, model, loss, opts, dilatenet
+from rvseg import dataset, models, loss, opts
 
 
 def select_optimizer(optimizer_name, optimizer_args):
@@ -64,7 +64,13 @@ def train():
     _, _, _, classes = masks.shape
 
     logging.info("Building model...")
-    m = dilatenet.DilatedUNet(height, width, maps, classes=classes).generate_model()
+    string_to_model = {
+        "unet": models.UNet,
+        "dilated-unet": models.DilatedUNet,
+        "dilated-densenet": models.DilatedDenseNet,
+    }
+    Model = string_to_model[args.model]
+    m = Model(height, width, channels, classes)
 
     m.summary()
 

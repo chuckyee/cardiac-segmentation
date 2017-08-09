@@ -9,15 +9,23 @@ from keras import backend as K
 
 
 class DilatedUNet(object):
-    def __init__(self, height, width, channels,
-                 features=64, depth=4, classes=2, temperature=1.0,
-                 padding='valid', batchnorm=False, dropout=0.0):
+    def __init__(self, height, width, channels, classes, features=64, depth=4,
+                 temperature=1.0, padding='valid', batchnorm=False,
+                 dropout=0.0):
         self.height = height
         self.width = width
         self.channels = channels
         self.classes = classes
+        self.features = features
+        self.depth = depth
+        self.temperature = temperature
+        self.padding = padding
 
-    def generate_model(self):
+        inputs, outputs = self.build_model()
+        
+        super(DilatedUNet, self).__init__(inputs=inputs, outputs=outputs)
+
+    def build_model(self):
         x = Input(shape=(self.height, self.width, self.channels))
         inputs = x
 
@@ -62,4 +70,4 @@ class DilatedUNet(object):
 
         probabilities = Conv2D(self.classes, kernel_size=(1,1), activation='softmax')(x)
 
-        return Model(inputs=inputs, outputs=probabilities)
+        return inputs, probabilities
