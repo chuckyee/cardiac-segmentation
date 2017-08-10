@@ -28,7 +28,7 @@ def sorensen_dice_loss(y_true, y_pred, weights):
     batch_dice_coefs = soft_sorensen_dice(y_true, y_pred, axis=[1, 2])
     dice_coefs = K.mean(batch_dice_coefs, axis=0)
     w = K.constant(weights)
-    return -K.sum(w * dice_coefs)
+    return 1 - K.sum(w * dice_coefs)
 
 def soft_jaccard(y_true, y_pred, axis=None, smooth=1):
     intersection = K.sum(y_true * y_pred, axis=axis)
@@ -48,4 +48,4 @@ def jaccard_loss(y_true, y_pred, weights):
     batch_jaccard_coefs = soft_jaccard(y_true, y_pred, axis=[1, 2])
     jaccard_coefs = K.mean(batch_jaccard_coefs, axis=0)
     w = K.constant(weights)
-    return -K.sum(w * jaccard_coefs)
+    return 1 - K.sum(w * jaccard_coefs)
