@@ -1,3 +1,3 @@
-from .unet import UNet
-from .dilatedunet import DilatedUNet
-from .dilateddensenet import DilatedDenseNet
+from .unet import unet
+from .dilatedunet import dilated_unet
+from .dilateddensenet import dilated_densenet

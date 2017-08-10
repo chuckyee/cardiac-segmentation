@@ -60,17 +60,17 @@ def train():
 
     # get image dimensions from first batch
     images, masks = next(train_generator)
-    _, height, width, maps = images.shape
+    _, height, width, channels = images.shape
     _, _, _, classes = masks.shape
 
     logging.info("Building model...")
     string_to_model = {
-        "unet": models.UNet,
-        "dilated-unet": models.DilatedUNet,
-        "dilated-densenet": models.DilatedDenseNet,
+        "unet": models.unet,
+        "dilated-unet": models.dilated_unet,
+        "dilated-densenet": models.dilated_densenet,
     }
-    Model = string_to_model[args.model]
-    m = Model(height=height, width=width, channels=maps, classes=classes,
+    model = string_to_model[args.model]
+    m = model(height=height, width=width, channels=channels, classes=classes,
               features=args.features, depth=args.depth, padding=args.padding,
               temperature=args.temperature, batchnorm=args.batchnorm,
               dropout=args.dropout)

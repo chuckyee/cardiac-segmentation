@@ -7,67 +7,51 @@ from keras.models import Model
 from keras import backend as K
 
 
-
-class DilatedUNet(object):
-    def __init__(self, height, width, channels, classes, features=64, depth=4,
+def dilated_unet(height, width, channels, classes, features=64, depth=4,
                  temperature=1.0, padding='valid', batchnorm=False,
                  dropout=0.0):
-        self.height = height
-        self.width = width
-        self.channels = channels
-        self.classes = classes
-        self.features = features
-        self.depth = depth
-        self.temperature = temperature
-        self.padding = padding
+    x = Input(shape=(height, width, channels))
+    inputs = x
 
-        inputs, outputs = self.build_model()
-        
-        super(DilatedUNet, self).__init__(inputs=inputs, outputs=outputs)
+    x = Conv2D(32, kernel_size=(3,3), dilation_rate=1, padding='same', activation='relu')(x)
+    x = Conv2D(32, kernel_size=(3,3), dilation_rate=2, padding='same', activation='relu')(x)
+    x1 = x
+    x = MaxPooling2D(pool_size=(2,2))(x)
 
-    def build_model(self):
-        x = Input(shape=(self.height, self.width, self.channels))
-        inputs = x
+    x = Conv2D(64, kernel_size=(3,3), dilation_rate=1, padding='same', activation='relu')(x)
+    x = Conv2D(64, kernel_size=(3,3), dilation_rate=2, padding='same', activation='relu')(x)
+    x2 = x
+    x = MaxPooling2D(pool_size=(2,2))(x)
 
-        x = Conv2D(32, kernel_size=(3,3), dilation_rate=1, padding='same', activation='relu')(x)
-        x = Conv2D(32, kernel_size=(3,3), dilation_rate=2, padding='same', activation='relu')(x)
-        x1 = x
-        x = MaxPooling2D(pool_size=(2,2))(x)
+    x = Conv2D(128, kernel_size=(3,3), dilation_rate=1, padding='same', activation='relu')(x)
+    x = Conv2D(128, kernel_size=(3,3), dilation_rate=2, padding='same', activation='relu')(x)
+    x3 = x
+    x = MaxPooling2D(pool_size=(2,2))(x)
 
-        x = Conv2D(64, kernel_size=(3,3), dilation_rate=1, padding='same', activation='relu')(x)
-        x = Conv2D(64, kernel_size=(3,3), dilation_rate=2, padding='same', activation='relu')(x)
-        x2 = x
-        x = MaxPooling2D(pool_size=(2,2))(x)
+    x = Conv2D(256, kernel_size=(3,3), dilation_rate=1, padding='same', activation='relu')(x)
+    x = Conv2D(256, kernel_size=(3,3), dilation_rate=2, padding='same', activation='relu')(x)
+    # global context should exist at this level, in that each input pixel is mixed
+    # However, high level features aren't globally incorporated into context
+    x = Conv2D(256, kernel_size=(3,3), dilation_rate=4, padding='same', activation='relu')(x)
+    # Adding additional dilated convolutional layers should globally incorporate context
+    x = Conv2D(256, kernel_size=(3,3), dilation_rate=8, padding='same', activation='relu')(x)
+    x = Conv2D(256, kernel_size=(3,3), dilation_rate=16, padding='same', activation='relu')(x)
 
-        x = Conv2D(128, kernel_size=(3,3), dilation_rate=1, padding='same', activation='relu')(x)
-        x = Conv2D(128, kernel_size=(3,3), dilation_rate=2, padding='same', activation='relu')(x)
-        x3 = x
-        x = MaxPooling2D(pool_size=(2,2))(x)
+    x = Conv2DTranspose(128, kernel_size=(2,2), strides=(2,2))(x)
+    x = Concatenate()([x, x3])
+    x = Conv2D(128, kernel_size=(3,3), dilation_rate=1, padding='same', activation='relu')(x)
+    x = Conv2D(128, kernel_size=(3,3), dilation_rate=1, padding='same', activation='relu')(x)
 
-        x = Conv2D(256, kernel_size=(3,3), dilation_rate=1, padding='same', activation='relu')(x)
-        x = Conv2D(256, kernel_size=(3,3), dilation_rate=2, padding='same', activation='relu')(x)
-        # global context should exist at this level, in that each input pixel is mixed
-        # However, high level features aren't globally incorporated into context
-        x = Conv2D(256, kernel_size=(3,3), dilation_rate=4, padding='same', activation='relu')(x)
-        # Adding additional dilated convolutional layers should globally incorporate context
-        x = Conv2D(256, kernel_size=(3,3), dilation_rate=8, padding='same', activation='relu')(x)
-        x = Conv2D(256, kernel_size=(3,3), dilation_rate=16, padding='same', activation='relu')(x)
+    x = Conv2DTranspose(64, kernel_size=(2,2), strides=(2,2))(x)
+    x = Concatenate()([x, x2])
+    x = Conv2D(64, kernel_size=(3,3), dilation_rate=1, padding='same', activation='relu')(x)
+    x = Conv2D(64, kernel_size=(3,3), dilation_rate=1, padding='same', activation='relu')(x)
 
-        x = Conv2DTranspose(128, kernel_size=(2,2), strides=(2,2))(x)
-        x = Concatenate()([x, x3])
-        x = Conv2D(128, kernel_size=(3,3), dilation_rate=1, padding='same', activation='relu')(x)
-        x = Conv2D(128, kernel_size=(3,3), dilation_rate=1, padding='same', activation='relu')(x)
-    
-        x = Conv2DTranspose(64, kernel_size=(2,2), strides=(2,2))(x)
-        x = Concatenate()([x, x2])
-        x = Conv2D(64, kernel_size=(3,3), dilation_rate=1, padding='same', activation='relu')(x)
-        x = Conv2D(64, kernel_size=(3,3), dilation_rate=1, padding='same', activation='relu')(x)
+    x = Conv2DTranspose(32, kernel_size=(2,2), strides=(2,2))(x)
+    x = Concatenate()([x, x1])
+    x = Conv2D(32, kernel_size=(3,3), dilation_rate=1, padding='same', activation='relu')(x)
+    x = Conv2D(32, kernel_size=(3,3), dilation_rate=1, padding='same', activation='relu')(x)
 
-        x = Conv2DTranspose(32, kernel_size=(2,2), strides=(2,2))(x)
-        x = Concatenate()([x, x1])
-        x = Conv2D(32, kernel_size=(3,3), dilation_rate=1, padding='same', activation='relu')(x)
-        x = Conv2D(32, kernel_size=(3,3), dilation_rate=1, padding='same', activation='relu')(x)
+    probabilities = Conv2D(classes, kernel_size=(1,1), activation='softmax')(x)
 
-        probabilities = Conv2D(self.classes, kernel_size=(1,1), activation='softmax')(x)
-
-        return inputs, probabilities
+    return Model(inputs=inputs, outputs=probabilities)
