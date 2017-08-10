@@ -11,7 +11,7 @@ from keras.optimizers import SGD, RMSprop, Adagrad, Adadelta, Adam, Adamax, Nada
 from keras.callbacks import ModelCheckpoint
 from keras import backend as K
 
-from rvseg import dataset, model, loss, opts
+from rvseg import dataset, models, loss, opts
 
 
 def select_optimizer(optimizer_name, optimizer_args):
@@ -60,18 +60,20 @@ def train():
 
     # get image dimensions from first batch
     images, masks = next(train_generator)
-    _, height, width, maps = images.shape
+    _, height, width, channels = images.shape
     _, _, _, classes = masks.shape
 
     logging.info("Building model...")
-    m = model.u_net(height, width, maps,
-                    features=args.features,
-                    depth=args.depth,
-                    classes=classes,
-                    temperature=args.temperature,
-                    padding=args.padding,
-                    batchnorm=args.batchnorm,
-                    dropout=args.dropout)
+    string_to_model = {
+        "unet": models.unet,
+        "dilated-unet": models.dilated_unet,
+        "dilated-densenet": models.dilated_densenet,
+    }
+    model = string_to_model[args.model]
+    m = model(height=height, width=width, channels=channels, classes=classes,
+              features=args.features, depth=args.depth, padding=args.padding,
+              temperature=args.temperature, batchnorm=args.batchnorm,
+              dropout=args.dropout)
 
     m.summary()
 

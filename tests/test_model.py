@@ -5,19 +5,20 @@ import unittest
 from keras.layers import Input
 from keras import backend as K
 
-from rvseg import model
+from rvseg.models import convunet
+from rvseg.models import unet
 
 class TestModel(unittest.TestCase):
     def test_downsampling(self):
         inputs = Input(shape=(28, 28, 1))
         filters = 16
         padding = 'valid'
-        x, y = model.downsampling_block(inputs, filters, padding)
+        x, y = convunet.downsampling_block(inputs, filters, padding)
         self.assertTupleEqual(K.int_shape(x), (None, 12, 12, filters))
         self.assertTupleEqual(K.int_shape(y), (None, 24, 24, filters))
 
         padding = 'same'
-        x, y = model.downsampling_block(inputs, filters, padding)
+        x, y = convunet.downsampling_block(inputs, filters, padding)
         self.assertTupleEqual(K.int_shape(x), (None, 14, 14, filters))
         self.assertTupleEqual(K.int_shape(y), (None, 28, 28, filters))
 
@@ -26,9 +27,9 @@ class TestModel(unittest.TestCase):
         inputs = Input(shape=(29, 29, 1))
         filters = 16
         with self.assertRaises(AssertionError):
-            model.downsampling_block(inputs, filters, padding='valid')
+            convunet.downsampling_block(inputs, filters, padding='valid')
         with self.assertRaises(AssertionError):
-            model.downsampling_block(inputs, filters, padding='same')
+            convunet.downsampling_block(inputs, filters, padding='same')
 
     def test_upsampling(self):
         # concatenation without cropping
@@ -36,7 +37,7 @@ class TestModel(unittest.TestCase):
         inputs = Input(shape=(14, 14, 2*filters))
         skip = Input(shape=(28, 28, filters))
         padding = 'valid'
-        x = model.upsampling_block(inputs, skip, filters, padding)
+        x = convunet.upsampling_block(inputs, skip, filters, padding)
         self.assertTupleEqual(K.int_shape(x), (None, 24, 24, filters))
 
         # ((4,4), (4,4)) cropping
@@ -44,7 +45,7 @@ class TestModel(unittest.TestCase):
         inputs = Input(shape=(10, 10, 2*filters))
         skip = Input(shape=(28, 28, filters))
         padding = 'valid'
-        x = model.upsampling_block(inputs, skip, filters, padding)
+        x = convunet.upsampling_block(inputs, skip, filters, padding)
         self.assertTupleEqual(K.int_shape(x), (None, 16, 16, filters))
 
         # odd-integer input size
@@ -52,7 +53,7 @@ class TestModel(unittest.TestCase):
         inputs = Input(shape=(11, 11, 2*filters))
         skip = Input(shape=(28, 28, filters))
         padding = 'valid'
-        x = model.upsampling_block(inputs, skip, filters, padding)
+        x = convunet.upsampling_block(inputs, skip, filters, padding)
         self.assertTupleEqual(K.int_shape(x), (None, 18, 18, filters))
 
         # test odd-integer cropping
@@ -60,7 +61,7 @@ class TestModel(unittest.TestCase):
         inputs = Input(shape=(11, 11, 2*filters))
         skip = Input(shape=(27, 27, filters))
         padding = 'valid'
-        x = model.upsampling_block(inputs, skip, filters, padding)
+        x = convunet.upsampling_block(inputs, skip, filters, padding)
         self.assertTupleEqual(K.int_shape(x), (None, 18, 18, filters))
 
         # test same padding
@@ -68,7 +69,7 @@ class TestModel(unittest.TestCase):
         inputs = Input(shape=(11, 11, 2*filters))
         skip = Input(shape=(27, 27, filters))
         padding = 'same'
-        x = model.upsampling_block(inputs, skip, filters, padding)
+        x = convunet.upsampling_block(inputs, skip, filters, padding)
         self.assertTupleEqual(K.int_shape(x), (None, 22, 22, filters))
 
     def test_upsampling_error(self):
@@ -77,23 +78,23 @@ class TestModel(unittest.TestCase):
         padding = 'valid'
         with self.assertRaises(AssertionError):
             skip = Input(shape=(21, 22, filters))
-            x = model.upsampling_block(inputs, skip, filters, padding)
+            x = convunet.upsampling_block(inputs, skip, filters, padding)
         with self.assertRaises(AssertionError):
             skip = Input(shape=(22, 21, filters))
-            x = model.upsampling_block(inputs, skip, filters, padding)
+            x = convunet.upsampling_block(inputs, skip, filters, padding)
 
-    def test_u_net(self):
+    def test_unet(self):
         # classic u-net architecture from
         #   "U-Net: Convolutional Networks for Biomedical Image Segmentation"
         #   O. Ronneberger, P. Fischer, T. Brox (2015)
-        height, width, maps = 572, 572, 1
+        height, width, channels = 572, 572, 1
         features = 64
         depth = 4
         classes = 2
         temperature = 1.0
         padding = 'valid'
-        m = model.u_net(height, width, maps, features, depth, classes,
-                        temperature, padding)
+        m = unet(height, width, channels, classes, features, depth,
+                 temperature, padding)
         self.assertEqual(len(m.layers), 56)
 
         # input/output dimensions
@@ -197,7 +198,7 @@ class TestModel(unittest.TestCase):
 
     def test_batchnorm(self):
         # only batch norm, no dropout
-        height, width, maps = 10, 10, 1
+        height, width, channels = 10, 10, 1
         features = 4
         depth = 1
         classes = 2
@@ -205,8 +206,8 @@ class TestModel(unittest.TestCase):
         padding = 'same'
         batchnorm = True
         dropout = False
-        m = model.u_net(height, width, maps, features, depth, classes,
-                        temperature, padding, batchnorm, dropout)
+        m = unet(height, width, channels, classes, features, depth,
+                 temperature, padding, batchnorm, dropout)
         self.assertEqual(len(m.layers), 25)
 
         # input/output dimensions
@@ -217,7 +218,7 @@ class TestModel(unittest.TestCase):
 
     def test_dropout(self):
         # only dropout, no batch norm
-        height, width, maps = 10, 10, 1
+        height, width, channels = 10, 10, 1
         features = 4
         depth = 1
         classes = 2
@@ -225,8 +226,8 @@ class TestModel(unittest.TestCase):
         padding = 'same'
         batchnorm = False
         dropout = True
-        m = model.u_net(height, width, maps, features, depth, classes,
-                        temperature, padding, batchnorm, dropout)
+        m = unet(height, width, channels, classes, features, depth,
+                 temperature, padding, batchnorm, dropout)
         self.assertEqual(len(m.layers), 25)
 
         # input/output dimensions

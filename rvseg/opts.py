@@ -7,6 +7,7 @@ import logging
 
 definitions = [
     # model               type   default help
+    ('model',            (str,   'unet', "Model: unet, dilated-unet, dilated-densenet")),
     ('features',         (int,   64,     "Number of features maps after first convolutional layer.")),
     ('depth',            (int,   4,      "Number of downsampled convolutional blocks.")),
     ('temperature',      (float, 1.0,    "Temperature of final softmax layer in model.")),
