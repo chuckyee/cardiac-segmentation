@@ -49,3 +49,13 @@ def jaccard_loss(y_true, y_pred, weights):
     jaccard_coefs = K.mean(batch_jaccard_coefs, axis=0)
     w = K.constant(weights)
     return 1 - K.sum(w * jaccard_coefs)
+
+def weighted_categorical_crossentropy(y_true, y_pred, weights, epsilon=1e-8):
+    ndim = K.ndim(y_pred)
+    # scale predictions so class probabilities of each pixel sum to 1
+    y_pred /= K.sum(y_pred, axis=(ndim-1), keepdims=True)
+    y_pred = K.clip(y_pred, epsilon, 1-epsilon)
+    w = K.constant(weights)
+    # first, average over all axis except classes
+    cross_entropies = -K.mean(y_true * K.log(y_pred), axis=tuple(range(ndim-1)))
+    return K.sum(w * cross_entropies)

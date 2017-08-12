@@ -96,7 +96,9 @@ def train():
     # select loss function: pixel-wise crossentropy, soft dice or soft
     # jaccard coefficient
     if args.loss == 'pixel':
-        lossfunc = 'categorical_crossentropy'
+        def lossfunc(y_true, y_pred):
+            return loss.weighted_categorical_crossentropy(
+                y_true, y_pred, args.loss_weights)
     elif args.loss == 'dice':
         def lossfunc(y_true, y_pred):
             return loss.sorensen_dice_loss(y_true, y_pred, args.loss_weights)
