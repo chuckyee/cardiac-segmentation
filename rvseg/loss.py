@@ -27,7 +27,7 @@ def sorensen_dice_loss(y_true, y_pred, weights):
     # to the object of interest, we set weights = [0, 1]
     batch_dice_coefs = soft_sorensen_dice(y_true, y_pred, axis=[1, 2])
     dice_coefs = K.mean(batch_dice_coefs, axis=0)
-    w = K.constant(weights) * (ncategory / sum(weights))
+    w = K.constant(weights) / sum(weights)
     return 1 - K.sum(w * dice_coefs)
 
 def soft_jaccard(y_true, y_pred, axis=None, smooth=1):
@@ -47,7 +47,7 @@ jaccard = hard_jaccard
 def jaccard_loss(y_true, y_pred, weights):
     batch_jaccard_coefs = soft_jaccard(y_true, y_pred, axis=[1, 2])
     jaccard_coefs = K.mean(batch_jaccard_coefs, axis=0)
-    w = K.constant(weights) * (ncategory / sum(weights))
+    w = K.constant(weights) / sum(weights)
     return 1 - K.sum(w * jaccard_coefs)
 
 def weighted_categorical_crossentropy(y_true, y_pred, weights, epsilon=1e-8):
