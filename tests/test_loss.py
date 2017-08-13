@@ -42,7 +42,7 @@ class TestModel(unittest.TestCase):
             y_true, y_pred, weights)
         loss_val = K.eval(lossfunc)
 
-        w = weights
+        w = 2 * np.array(weights) / sum(weights)
         logs = -np.log(np.array([.1, .4, .5, .6, .9, 1e-8]))
         expected_loss_val = w[1]*logs[3]/4 + w[0]*(logs[0] + logs[2] + logs[5])/4
 

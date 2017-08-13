@@ -27,7 +27,7 @@ def sorensen_dice_loss(y_true, y_pred, weights):
     # to the object of interest, we set weights = [0, 1]
     batch_dice_coefs = soft_sorensen_dice(y_true, y_pred, axis=[1, 2])
     dice_coefs = K.mean(batch_dice_coefs, axis=0)
-    w = K.constant(weights)
+    w = K.constant(weights) * (ncategory / sum(weights))
     return 1 - K.sum(w * dice_coefs)
 
 def soft_jaccard(y_true, y_pred, axis=None, smooth=1):
@@ -47,15 +47,16 @@ jaccard = hard_jaccard
 def jaccard_loss(y_true, y_pred, weights):
     batch_jaccard_coefs = soft_jaccard(y_true, y_pred, axis=[1, 2])
     jaccard_coefs = K.mean(batch_jaccard_coefs, axis=0)
-    w = K.constant(weights)
+    w = K.constant(weights) * (ncategory / sum(weights))
     return 1 - K.sum(w * jaccard_coefs)
 
 def weighted_categorical_crossentropy(y_true, y_pred, weights, epsilon=1e-8):
     ndim = K.ndim(y_pred)
+    ncategory = K.int_shape(y_pred)[-1]
     # scale predictions so class probabilities of each pixel sum to 1
     y_pred /= K.sum(y_pred, axis=(ndim-1), keepdims=True)
     y_pred = K.clip(y_pred, epsilon, 1-epsilon)
-    w = K.constant(weights)
+    w = K.constant(weights) * (ncategory / sum(weights))
     # first, average over all axis except classes
     cross_entropies = -K.mean(y_true * K.log(y_pred), axis=tuple(range(ndim-1)))
     return K.sum(w * cross_entropies)
