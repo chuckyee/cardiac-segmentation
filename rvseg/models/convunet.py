@@ -14,18 +14,14 @@ def downsampling_block(input_tensor, filters, padding='valid',
     assert width % 2 == 0
 
     x = Conv2D(filters, kernel_size=(3,3), padding=padding)(input_tensor)
-    if batchnorm:
-        x = BatchNormalization()(x)
+    x = BatchNormalization()(x) if batchnorm else x
     x = Activation('relu')(x)
-    if dropout > 0:
-        x = Dropout(dropout)(x)
+    x = Dropout(dropout)(x) if dropout > 0 else x
 
     x = Conv2D(filters, kernel_size=(3,3), padding=padding)(x)
-    if batchnorm:
-        x = BatchNormalization()(x)
+    x = BatchNormalization()(x) if batchnorm else x
     x = Activation('relu')(x)
-    if dropout > 0:
-        x = Dropout(dropout)(x)
+    x = Dropout(dropout)(x) if dropout > 0 else x
 
     return MaxPooling2D(pool_size=(2,2))(x), x
 
@@ -49,24 +45,20 @@ def upsampling_block(input_tensor, skip_tensor, filters, padding='valid',
     x = Concatenate()([x, y])
 
     x = Conv2D(filters, kernel_size=(3,3), padding=padding)(x)
-    if batchnorm:
-        x = BatchNormalization()(x)
+    x = BatchNormalization()(x) if batchnorm else x
     x = Activation('relu')(x)
-    if dropout > 0:
-        x = Dropout(dropout)(x)
+    x = Dropout(dropout)(x) if dropout > 0 else x
 
     x = Conv2D(filters, kernel_size=(3,3), padding=padding)(x)
-    if batchnorm:
-        x = BatchNormalization()(x)
+    x = BatchNormalization()(x) if batchnorm else x
     x = Activation('relu')(x)
-    if dropout > 0:
-        x = Dropout(dropout)(x)
+    x = Dropout(dropout)(x) if dropout > 0 else x
 
     return x
 
 def unet(height, width, channels, classes, features=64, depth=4,
          temperature=1.0, padding='valid', batchnorm=False, dropout=0.0):
-    """Generate class U-Net model introduced in
+    """Generate U-Net model introduced in
       "U-Net: Convolutional Networks for Biomedical Image Segmentation"
       O. Ronneberger, P. Fischer, T. Brox (2015)
     Arbitrary number of input channels and output classes are supported.
@@ -99,18 +91,14 @@ def unet(height, width, channels, classes, features=64, depth=4,
         features *= 2
 
     x = Conv2D(filters=features, kernel_size=(3,3), padding=padding)(x)
-    if batchnorm:
-        x = BatchNormalization()(x)
+    x = BatchNormalization()(x) if batchnorm else x
     x = Activation('relu')(x)
-    if dropout > 0:
-        x = Dropout(dropout)(x)
+    x = Dropout(dropout)(x) if dropout > 0 else x
 
     x = Conv2D(filters=features, kernel_size=(3,3), padding=padding)(x)
-    if batchnorm:
-        x = BatchNormalization()(x)
+    x = BatchNormalization()(x) if batchnorm else x
     x = Activation('relu')(x)
-    if dropout > 0:
-        x = Dropout(dropout)(x)
+    x = Dropout(dropout)(x) if dropout > 0 else x
 
     for i in reversed(range(depth)):
         features //= 2
