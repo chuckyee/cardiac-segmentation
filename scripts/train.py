@@ -68,6 +68,8 @@ def train():
         "unet": models.unet,
         "dilated-unet": models.dilated_unet,
         "dilated-densenet": models.dilated_densenet,
+        "dilated-densenet2": models.dilated_densenet2,
+        "dilated-densenet3": models.dilated_densenet3,
     }
     model = string_to_model[args.model]
     m = model(height=height, width=width, channels=channels, classes=classes,
