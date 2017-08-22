@@ -36,7 +36,7 @@ p = patient.PatientData("RVSC-data/TrainingSet/patient01")
 Scripts for model training and evaluation are located under /scripts/.
 
 ```bash
-python -u ~/Developer/software/cardiac-segmentation/scripts/train.py defaults.config
+python -u scripts/train.py defaults.config
 ```
 
 Note: this package is written with the Tensorflow backend in mind -- (batch,
