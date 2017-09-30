@@ -56,7 +56,8 @@ def load_images(data_dir, mask='both'):
     # one-hot encode masks
     dims = masks.shape
     classes = len(set(masks[0].flatten())) # get num classes from first image
-    masks = utils.to_categorical(masks).reshape(*dims, classes)
+    new_shape = dims + (classes,)
+    masks = utils.to_categorical(masks).reshape(new_shape)
 
     return images, masks
 
